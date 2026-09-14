@@ -48,6 +48,12 @@ const server = http.createServer((req, res) => {
     }
     if (url.pathname === "/api/orchestration/dispatch") {
       const reply = (world.dispatch || {})[parsed.type] || { status: 200, body: { sequence: 1 } };
+      const target = (world.threads || {})[parsed.threadId];
+      if (reply.status === 200 && target) {
+        if (parsed.type === "thread.session.stop" && target.session) target.session.status = "stopped";
+        if (parsed.type === "thread.archive") target.archivedAt = new Date().toISOString();
+        fs.writeFileSync(path.join(caseDir, "world.json"), JSON.stringify(world));
+      }
       return send(reply.status, reply.body);
     }
     send(404, { reason: "unknown path" });
@@ -72,6 +78,10 @@ done
 [ -s "$SERVER_DIR/port" ] || fail "fake T3 server did not publish its port"
 ORIGIN="http://127.0.0.1:$(cat "$SERVER_DIR/port")"
 TOKEN=tok-firstmate
+# A claude spawn writes workspace trust into the launching user's own store
+# (${CLAUDE_CONFIG_DIR:-$HOME}), so both are pinned to a throwaway home.
+SPAWN_HOME="$TMP_ROOT/user-home"
+mkdir -p "$SPAWN_HOME"
 
 # t3_case <name> [session-status-or-empty] -> sets CASE_DIR, CONFIG, LOG, REPO
 # The default world has one project rooted at $REPO with a Claude default
@@ -119,6 +129,52 @@ const w = JSON.parse(fs.readFileSync(file, "utf8"));
 eval(process.argv[2]);
 fs.writeFileSync(file, JSON.stringify(w));
 ' "$CASE_DIR/world.json" "$1"
+}
+
+# A treehouse stub: `get --lease` prints the prepared worktree, every call is
+# logged as a JSON line into the same request log as the fake server so the
+# order of T3 calls against treehouse calls is provable.
+make_treehouse_fakebin() {  # <dir> -> echoes fakebin dir
+  local fb="$1/fakebin"
+  mkdir -p "$fb"
+  cat > "$fb/treehouse" <<'SH'
+#!/usr/bin/env bash
+set -u
+printf '{"tool":"treehouse","args":"%s","cwd":"%s"}\n' "$*" "$PWD" >> "${FM_T3_TREEHOUSE_LOG:?}"
+case "${1:-}" in
+  get) printf '%s\n' "${FM_T3_TREEHOUSE_WT:?}" ;;
+esac
+exit 0
+SH
+  chmod +x "$fb/treehouse"
+  printf '%s\n' "$fb"
+}
+
+neutral_fm_root() {  # <dir> -> echoes a minimal root with a quiet guard
+  local root="$1/root"
+  mkdir -p "$root/bin"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$root/bin/fm-guard.sh"
+  chmod +x "$root/bin/fm-guard.sh"
+  printf '%s\n' "$root"
+}
+
+write_spawn_brief() {  # <data-dir> <id>
+  cat > "$1/$2/brief.md" <<'EOF'
+# Task
+## Captain's intent
+Exercise T3 dispatch.
+
+## Firstmate spec
+Verify the T3 lifecycle behavior under test.
+EOF
+}
+
+t3_log_line_of() {  # <js predicate over r> -> 1-based line number of the first match
+  node -e '
+const lines = require("fs").readFileSync(process.argv[1], "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l));
+const i = lines.findIndex((r) => eval(process.argv[2]));
+process.stdout.write(String(i + 1));
+' "$LOG" "$1"
 }
 
 t3_run() {  # <bash snippet run after sourcing fm-backend.sh with t3code loaded> [positional args...]
@@ -404,6 +460,159 @@ test_control_lib_tables() {
   pass "fm-control-lib: t3code key set and state-verified membership"
 }
 
+test_spawn_leases_slot_creates_thread_and_starts_launch_turn() {
+  local proj wt data state id out fb thread
+  id="t3spawnz1"
+  t3_case spawn ready
+  proj="$CASE_DIR/spawn-project"
+  wt="$CASE_DIR/spawn-wt"
+  data="$CASE_DIR/data"
+  state="$CASE_DIR/state"
+  fm_git_worktree "$proj" "$wt" "fm/$id"
+  mkdir -p "$data/$id" "$state" "$CASE_DIR/home/state"
+  write_spawn_brief "$data" "$id"
+  touch "$state/.last-watcher-beat"
+  FM_T3_PROJ="$proj" t3_world_set 'w.shell.projects[0].workspaceRoot = process.env.FM_T3_PROJ'
+  fb=$(make_treehouse_fakebin "$CASE_DIR")
+  out=$( HOME="$SPAWN_HOME" CLAUDE_CONFIG_DIR='' PATH="$fb:$PATH" FM_T3_TREEHOUSE_LOG="$LOG" FM_T3_TREEHOUSE_WT="$wt" \
+    FM_T3CODE_ORIGIN="$ORIGIN" FM_ROOT_OVERRIDE="$ROOT" FM_HOME="$CASE_DIR/home" FM_STATE_OVERRIDE="$state" FM_DATA_OVERRIDE="$data" FM_CONFIG_OVERRIDE="$CONFIG" \
+    FM_PROJECTS_OVERRIDE="$CASE_DIR/unused-projects" FM_SPAWN_NO_GUARD=1 \
+    "$ROOT/bin/fm-spawn.sh" "$id" "$proj" claude --mode no-mistakes --yolo off --model claude-sonnet-5 --effort high --backend t3code 2>&1 )
+  expect_code 0 $? "fm-spawn.sh --backend t3code should succeed against the fake T3 server"$'\n'"$out"
+  assert_contains "$out" "spawned $id harness=claude kind=ship mode=no-mistakes yolo=off window=fm-$id worktree=$wt" \
+    "spawn output missing the T3 window alias and worktree summary"
+  assert_grep "backend=t3code" "$state/$id.meta" "meta missing backend=t3code"
+  assert_grep "window=fm-$id" "$state/$id.meta" "meta missing the stable window alias"
+  assert_grep "t3_project_id=proj-1" "$state/$id.meta" "meta missing the matched T3 project id"
+  assert_grep "worktree=$wt" "$state/$id.meta" "meta missing the leased worktree"
+  thread=$(bash -c '. "$1"; fm_meta_get "$2" t3_thread_id' _ "$ROOT/bin/fm-backend.sh" "$state/$id.meta")
+  case "$thread" in ????????-????-????-????-????????????) ;; *) fail "meta t3_thread_id should be a uuid, got '$thread'" ;; esac
+  [ "$(t3_dispatch_types)" = "thread.create thread.turn.start" ] || fail "spawn must dispatch thread.create then thread.turn.start, got '$(t3_dispatch_types)'"
+  [ "$(t3_log_line_of 'r.tool === "treehouse" && r.args === "get --lease --lease-holder '"$id"'" && r.cwd === "'"$proj"'"')" -gt 0 ] \
+    || fail "spawn must lease the slot with treehouse get --lease --lease-holder <id> from the project"
+  local create turn
+  create=$(t3_log_line_of 'r.body && r.body.type === "thread.create"')
+  turn=$(t3_log_line_of 'r.body && r.body.type === "thread.turn.start"')
+  [ "$(t3_request "$create" 'r.body.threadId')" = "$thread" ] || fail "thread.create must carry the recorded thread id"
+  [ "$(t3_request "$create" 'r.body.worktreePath')" = "$wt" ] || fail "thread.create must point at the leased worktree"
+  [ "$(t3_request "$create" 'r.body.branch')" = "fm/$id" ] || fail "thread.create must carry the slot's branch"
+  [ "$(t3_request "$create" 'r.body.title')" = "fm-$id" ] || fail "thread.create title should be the window alias"
+  [ "$(t3_request "$create" 'r.body.modelSelection')" = '{"instanceId":"claudeAgent","model":"claude-sonnet-5","options":[{"id":"effort","value":"high"}]}' ] \
+    || fail "thread.create must carry --model/--effort as the model selection"
+  [ "$(t3_request "$turn" 'r.body.threadId')" = "$thread" ] || fail "turn.start must target the created thread"
+  assert_contains "$(t3_request "$turn" 'r.body.message.text')" "FIRSTMATE_OP: v1 launch-brief:" "turn.start must carry the encoded launch brief"
+  assert_contains "$(t3_request "$turn" 'r.body.message.text')" "Verify the T3 lifecycle behavior under test." "turn.start must carry the brief body"
+  assert_present "$wt/.claude/settings.local.json" "spawn must still arm the Claude busy hooks in the worktree before the launch turn"
+  [ "$(t3_log_line_of 'r.body && r.body.type === "thread.turn.start"')" -gt "$(t3_log_line_of 'r.tool === "treehouse"')" ] \
+    || fail "the launch turn must follow the lease"
+  rm -rf "/tmp/fm-$id"
+  pass "fm-spawn.sh --backend t3code: leases the slot, creates the thread on it, records metadata, starts the launch turn"
+}
+
+test_spawn_refuses_t3code_secondmate_before_home_mutation() {
+  local home subhome data state config id out status
+  id="t3smz1"
+  home="$TMP_ROOT/secondmate-refusal-home"
+  subhome="$TMP_ROOT/secondmate-refusal-subhome"
+  data="$home/data"; state="$home/state"; config="$home/config"
+  mkdir -p "$data" "$state" "$config" "$subhome/bin" "$subhome/data" "$subhome/state" "$subhome/projects"
+  printf '%s\n' "$id" > "$subhome/.fm-secondmate-home"
+  printf 'firstmate\n' > "$subhome/AGENTS.md"
+  printf 'claude\n' > "$config/crew-harness"
+  touch "$state/.last-watcher-beat"
+  out=$( FM_ROOT_OVERRIDE="$ROOT" FM_HOME="$home" FM_STATE_OVERRIDE="$state" FM_DATA_OVERRIDE="$data" FM_CONFIG_OVERRIDE="$config" \
+    FM_PROJECTS_OVERRIDE="$home/projects" FM_SPAWN_NO_GUARD=1 \
+    "$ROOT/bin/fm-spawn.sh" "$id" "$subhome" claude --backend t3code --secondmate 2>&1 )
+  status=$?
+  [ "$status" -ne 0 ] || fail "backend=t3code --secondmate should be refused"
+  assert_contains "$out" "backend=t3code does not support --secondmate spawns yet" "the secondmate refusal should happen at backend selection"
+  assert_absent "$subhome/config/crew-harness" "the refusal must not propagate inherited local material into the secondmate home"
+  pass "fm-spawn.sh --backend t3code --secondmate: refuses before secondmate-home mutation"
+}
+
+test_spawn_refuses_t3code_when_token_rejected() {
+  local proj data state id out status fb
+  id="t3authz1"
+  t3_case spawn-bad-token ready
+  printf 'stale\n' > "$CONFIG/t3code-token"
+  proj="$CASE_DIR/project"; data="$CASE_DIR/data"; state="$CASE_DIR/state"
+  fm_git_init_commit "$proj"
+  mkdir -p "$data/$id" "$state" "$CASE_DIR/home/state"
+  write_spawn_brief "$data" "$id"
+  touch "$state/.last-watcher-beat"
+  fb=$(make_treehouse_fakebin "$CASE_DIR")
+  out=$( HOME="$SPAWN_HOME" CLAUDE_CONFIG_DIR='' PATH="$fb:$PATH" FM_T3_TREEHOUSE_LOG="$LOG" FM_T3_TREEHOUSE_WT="$proj" \
+    FM_T3CODE_ORIGIN="$ORIGIN" FM_ROOT_OVERRIDE="$ROOT" FM_HOME="$CASE_DIR/home" FM_STATE_OVERRIDE="$state" FM_DATA_OVERRIDE="$data" FM_CONFIG_OVERRIDE="$CONFIG" \
+    FM_PROJECTS_OVERRIDE="$CASE_DIR/unused-projects" FM_SPAWN_NO_GUARD=1 \
+    "$ROOT/bin/fm-spawn.sh" "$id" "$proj" claude --mode no-mistakes --yolo off --backend t3code 2>&1 )
+  status=$?
+  [ "$status" -ne 0 ] || fail "fm-spawn.sh --backend t3code should refuse when the T3 server rejects the bearer"
+  assert_contains "$out" "npx t3@0.0.41-nightly.20260914.1707 auth session issue --json" "the refusal must name the mint command"
+  assert_absent "$state/$id.meta" "a runtime refusal must not record metadata"
+  [ "$(t3_log_line_of 'r.tool === "treehouse"')" -eq 0 ] || fail "spawn must refuse before leasing a slot"
+  [ -z "$(t3_dispatch_types)" ] || fail "spawn must refuse before dispatching anything"
+  pass "fm-spawn.sh --backend t3code: refuses before mutation when the bearer is rejected"
+}
+
+test_scout_teardown_stops_and_archives_before_slot_return() {
+  local proj wt data state id out rc neutral fb thread=2c8f0d4e-7b1a-4f3c-9e2d-abcdef012345
+  id="t3teardownz1"
+  t3_case teardown running
+  t3_world "$(t3_thread_json "$thread" running null)"
+  proj="$CASE_DIR/project"; wt="$CASE_DIR/wt"; data="$CASE_DIR/data"; state="$CASE_DIR/state"
+  fm_git_worktree "$proj" "$wt" "fm/$id"
+  mkdir -p "$data/$id" "$state" "$CASE_DIR/home/state"
+  printf 'report\n' > "$data/$id/report.md"
+  touch "$state/.last-watcher-beat"
+  fm_write_meta "$state/$id.meta" \
+    "window=fm-$id" "endpoint_task_id=$id" "worktree=$wt" "project=$proj" \
+    "harness=claude" "kind=scout" "mode=no-mistakes" "yolo=off" \
+    "backend=t3code" "t3_thread_id=$thread" "t3_project_id=proj-1" \
+    "decisions_reviewed=1" "decision_keys="
+  fb=$(make_treehouse_fakebin "$CASE_DIR")
+  neutral=$(neutral_fm_root "$CASE_DIR/neutral")
+  out=$( PATH="$fb:$PATH" FM_T3_TREEHOUSE_LOG="$LOG" FM_T3_TREEHOUSE_WT="$wt" FM_T3CODE_ORIGIN="$ORIGIN" \
+    FM_ROOT_OVERRIDE="$neutral" FM_HOME="$CASE_DIR/home" FM_STATE_OVERRIDE="$state" FM_DATA_OVERRIDE="$data" FM_CONFIG_OVERRIDE="$CONFIG" \
+    "$ROOT/bin/fm-teardown.sh" "$id" 2>&1 )
+  rc=$?
+  expect_code 0 "$rc" "t3code scout teardown should succeed once the report exists"$'\n'"$out"
+  [ "$(t3_dispatch_types)" = "thread.session.stop thread.archive" ] || fail "teardown must stop then archive exactly once, got '$(t3_dispatch_types)'"
+  local archive_line return_line
+  archive_line=$(t3_log_line_of 'r.body && r.body.type === "thread.archive"')
+  return_line=$(t3_log_line_of 'r.tool === "treehouse" && r.args.indexOf("return --force") === 0')
+  [ "$return_line" -gt 0 ] || fail "teardown must return the slot through treehouse"
+  [ "$archive_line" -lt "$return_line" ] || fail "the thread must be archived before the slot is returned (archive line $archive_line, return line $return_line)"
+  assert_absent "$state/$id.meta" "teardown should remove task metadata"
+  pass "fm-teardown.sh backend=t3code: stops and archives the thread, then returns the slot"
+}
+
+test_teardown_refuses_when_t3_is_unreachable() {
+  local proj wt data state id out rc neutral fb thread=3d9e1f5a-8c2b-4a4d-8f3e-fedcba543210
+  id="t3teardownz2"
+  t3_case teardown-unreachable running
+  proj="$CASE_DIR/project"; wt="$CASE_DIR/wt"; data="$CASE_DIR/data"; state="$CASE_DIR/state"
+  fm_git_worktree "$proj" "$wt" "fm/$id"
+  mkdir -p "$data/$id" "$state" "$CASE_DIR/home/state"
+  printf 'report\n' > "$data/$id/report.md"
+  touch "$state/.last-watcher-beat"
+  fm_write_meta "$state/$id.meta" \
+    "window=fm-$id" "endpoint_task_id=$id" "worktree=$wt" "project=$proj" \
+    "harness=claude" "kind=scout" "mode=no-mistakes" "yolo=off" \
+    "backend=t3code" "t3_thread_id=$thread" "t3_project_id=proj-1" \
+    "decisions_reviewed=1" "decision_keys="
+  fb=$(make_treehouse_fakebin "$CASE_DIR")
+  neutral=$(neutral_fm_root "$CASE_DIR/neutral")
+  out=$( PATH="$fb:$PATH" FM_T3_TREEHOUSE_LOG="$LOG" FM_T3_TREEHOUSE_WT="$wt" FM_T3CODE_ORIGIN=http://127.0.0.1:9 \
+    FM_ROOT_OVERRIDE="$neutral" FM_HOME="$CASE_DIR/home" FM_STATE_OVERRIDE="$state" FM_DATA_OVERRIDE="$data" FM_CONFIG_OVERRIDE="$CONFIG" \
+    "$ROOT/bin/fm-teardown.sh" "$id" 2>&1 )
+  rc=$?
+  [ "$rc" -ne 0 ] || fail "teardown must refuse when the T3 server cannot be reached"
+  assert_contains "$out" "could not stop and archive T3 thread $thread" "the refusal must name the thread and the fix"
+  [ "$(t3_log_line_of 'r.tool === "treehouse"')" -eq 0 ] || fail "a refused teardown must not return the slot"
+  assert_present "$state/$id.meta" "a refused teardown must preserve metadata"
+  pass "fm-teardown.sh backend=t3code: refuses to return a slot a live thread still points at"
+}
+
 test_missing_token_names_mint_command
 test_rejected_token_names_mint_command
 test_missing_origin_names_runtime_file
@@ -419,3 +628,8 @@ test_kill_stops_then_archives_and_tolerates_gone
 test_dispatcher_routes_and_validates_t3code_meta
 test_busy_classify_trusts_native_idle_and_busy
 test_control_lib_tables
+test_spawn_leases_slot_creates_thread_and_starts_launch_turn
+test_spawn_refuses_t3code_secondmate_before_home_mutation
+test_spawn_refuses_t3code_when_token_rejected
+test_scout_teardown_stops_and_archives_before_slot_return
+test_teardown_refuses_when_t3_is_unreachable

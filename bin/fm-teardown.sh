@@ -3296,6 +3296,18 @@ fi
 # pruned code root. Best effort - a sweep failure never blocks this teardown.
 "$SCRIPT_DIR/fm-remote-job-reap-orphans.sh" >&2 || true
 
+# A t3code thread is stopped and archived BEFORE its slot goes back to the pool:
+# a live thread whose worktreePath disappears re-creates it on the next turn,
+# so returning the slot first would hand T3 a path another task may take. The
+# kill is idempotent (an archived or deleted thread is already the end state),
+# so a re-run after a failed return converges; an unreachable server refuses
+# rather than returning a slot a live thread still points at.
+if [ "$BACKEND" = t3code ] && [ "$KIND" != secondmate ]; then
+  fm_backend_kill t3code "$T" || {
+    echo "error: could not stop and archive T3 thread $T for $ID; start T3 Code (or archive the thread there) and re-run teardown" >&2
+    exit 1
+  }
+fi
 # Best-effort: drop the local task branch so the shared repo does not accumulate refs.
 if [ "$BACKEND" = orca ] && [ "$KIND" != secondmate ]; then
   if [ "$ORCA_PATH_MATCH_VERIFIED" != 1 ]; then
