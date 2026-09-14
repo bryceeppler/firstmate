@@ -1516,7 +1516,7 @@ tests/fm-backend-t3code.test.sh
 tests/fm-backend.test.sh
 ```
 
-The fake-server suite covers the token and version gates, project matching, the create and turn-start payloads, the effort option ids, capture rendering, key mapping, the status table, the stop-then-archive kill, spawn, and teardown ordering.
+The fake-server suite covers the token and version gates, project matching, the create and turn-start payloads, the effort option ids, capture rendering, key mapping, the status table, the stop-then-archive kill, the per-directory environment files, worker and secondmate spawn, teardown ordering, and the home thread lookup the away daemon uses; `tests/fm-daemon.test.sh` covers the daemon's t3code discovery precedence and busy verdict.
 
 A live Firstmate smoke ran later the same day through the adapter itself, with `backend=t3code`, a `claude` scout at `claude-sonnet-5` and `low` effort, and a Treehouse-pooled project clone.
 `fm-spawn.sh` leased the slot, created the thread on it with the effort carried as a provider option, and started the brief as the first turn.
@@ -1524,7 +1524,38 @@ The scout's report showed its working directory and git common directory resolvi
 The worktree `.claude/settings.local.json` Stop hook wrote a `claude-hook` idle record from inside the thread, `fm-peek.sh` rendered the transcript, and `fm-crew-state.sh` read `working` from the `t3code-native` source while the turn ran.
 `fm-teardown.sh` stopped the session, archived the thread with its messages intact, returned the slot to the pool, and cleared the task state; the archived thread answers 404 on the thread read route and is absent from the shell snapshot.
 Teardown also reaped agent processes still alive in the worktree after `thread.session.stop`, so the stop is asynchronous on the server side.
-A `codex` scout on this backend has not been run live.
+
+A per-directory environment probe ran the same day against the same server, in a plain directory registered as a T3 project with a thread created with `worktreePath: null`, so the agent's cwd was the project's `workspaceRoot`.
+For Claude, `<dir>/.claude/settings.local.json` held an `env` block setting `FM_PROBE` and `FM_HOME` and a `SessionStart` hook echoing both; a turn asking the agent to print them through its shell tool returned:
+
+```text
+FM_PROBE=from-settings-env FM_HOME=/tmp/fm-envprobe.oQEU
+```
+
+and the hook's own output, read from the same thread, was:
+
+```text
+hook FM_PROBE=from-settings-env FM_HOME=/tmp/fm-envprobe.oQEU cwd=/private/tmp/fm-envprobe.oQEU
+```
+
+No trust dialog step was needed.
+For Codex, `<dir>/.codex/config.toml` held `[shell_environment_policy]` with `set = { FM_PROBE = "...", FM_HOME = "..." }`, and the same turn returned:
+
+```text
+FM_PROBE=from-codex-project-config FM_HOME=/tmp/fm-envprobe.oQEU
+```
+
+`thread.create` with `worktreePath: ""` answered HTTP 400 with an empty body; `worktreePath: null` was accepted.
+This is the channel `bin/fm-spawn.sh` uses for every fact a pane shell would have exported; `tests/fm-backend-t3code.test.sh` pins the files it writes.
+
+A captain smoke ran the same day against the same server: the firstmate home registered as a T3 project through `fm_backend_t3code_project_ensure`, a thread created on it with `worktreePath: null` and the home's branch, and one `thread.turn.start` carrying an operator instruction to dispatch a `claude` scout at `claude-sonnet-5` and `low` effort onto this backend and end the turn.
+Polling `fm_backend_t3code_probe` every 15 seconds read `running` while the captain dispatched, `ready` once its turn ended after the spawn, `running` again with no user message in between when the scout's done line landed (the Claude Stop-hook auto-arm woke the captain as a turn of its own), and `ready` after it replied.
+The thread read showed the captain's messages in that order, ending with its teardown of the scout and its acknowledgement; afterwards the scout's `state/` records were gone, its thread read `http-404`, and its `report.md` was present.
+
+A `codex` scout ran the same day through `bin/fm-spawn.sh <id> <project> --scout --harness codex --model gpt-5.6-sol --effort low --backend t3code`: the slot was leased, the thread was created on the `codex` instance with `reasoningEffort` as the provider option, and the launch turn started.
+`fm-crew-state.sh` read `working` from the `t3code-native` source while the session was `running`, and `fm-teardown.sh --force` later stopped and archived the thread and returned the slot, after which the thread read `http-404`.
+A diagnostic `fm_backend_t3code_turn_start` sent while the session was `ready` came back within 30 seconds.
+Two items stay open from that run: the scout's own report of the completion gate as blocked was the Codex agent's reading of the captain-hold lifecycle gate, since the same steer showed `tasks-axi` installed at a compatible version, and the Codex mid-turn steer is still unverified because that steer went to an idle session.
 
 ## Codex App host tools
 
