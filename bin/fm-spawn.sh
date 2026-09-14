@@ -1329,10 +1329,6 @@ if [ "$RELAUNCH" -eq 0 ]; then
   if [ "$BACKEND" = orca ]; then
     fm_backend_orca_runtime_check || exit 1
   fi
-  if [ "$BACKEND" = t3code ] && [ "$KIND" = secondmate ]; then
-    echo "error: backend=t3code does not support --secondmate spawns yet" >&2
-    exit 1
-  fi
   if [ "$BACKEND" = t3code ]; then
     fm_backend_t3code_runtime_check || exit 1
   fi
@@ -3052,20 +3048,29 @@ EOF
     T="$ORCA_TERMINAL"
     ;;
   t3code)
+    # The T3 project is the directory the agent runs in: the project for a
+    # worker, the home itself for a secondmate.
     T3CODE_PROJECT_ID=$(fm_backend_t3code_project_ensure "$PROJ_ABS") || exit 1
     T3CODE_MODEL_SELECTION=$(fm_backend_t3code_model_selection "$HARNESS" "${MODEL:-default}" "${EFFORT:-default}" "$T3CODE_PROJECT_ID") || exit 1
-    # A durable lease (bin/fm-home-seed.sh's pattern): there is no pane to run
-    # the interactive `treehouse get` in, and a slot a live T3 thread points at
-    # must never be handed on while that thread could re-create it.
-    WT=$(cd "$PROJ_ABS" && treehouse get --lease --lease-holder "$ID") || {
-      echo "error: treehouse get --lease failed to lease a worktree for $ID from $PROJ_ABS" >&2
-      exit 1
-    }
-    [ -n "$WT" ] || { echo "error: treehouse get --lease did not report a worktree for $ID" >&2; exit 1; }
-    T3CODE_LEASED=1
-    validate_spawn_worktree "treehouse get --lease" "$W"
-    T=$(fm_backend_t3code_thread_create "$T3CODE_PROJECT_ID" "$W" \
-      "$(git -C "$WT" branch --show-current 2>/dev/null || true)" "$WT" "$T3CODE_MODEL_SELECTION") || exit 1
+    if [ "$KIND" = secondmate ]; then
+      # No worktree of its own: worktreePath null runs the thread in the
+      # project's workspaceRoot, the home, on whatever branch it is on.
+      T=$(fm_backend_t3code_thread_create "$T3CODE_PROJECT_ID" "$W" \
+        "$(git -C "$PROJ_ABS" branch --show-current 2>/dev/null || true)" "" "$T3CODE_MODEL_SELECTION") || exit 1
+    else
+      # A durable lease (bin/fm-home-seed.sh's pattern): there is no pane to run
+      # the interactive `treehouse get` in, and a slot a live T3 thread points at
+      # must never be handed on while that thread could re-create it.
+      WT=$(cd "$PROJ_ABS" && treehouse get --lease --lease-holder "$ID") || {
+        echo "error: treehouse get --lease failed to lease a worktree for $ID from $PROJ_ABS" >&2
+        exit 1
+      }
+      [ -n "$WT" ] || { echo "error: treehouse get --lease did not report a worktree for $ID" >&2; exit 1; }
+      T3CODE_LEASED=1
+      validate_spawn_worktree "treehouse get --lease" "$W"
+      T=$(fm_backend_t3code_thread_create "$T3CODE_PROJECT_ID" "$W" \
+        "$(git -C "$WT" branch --show-current 2>/dev/null || true)" "$WT" "$T3CODE_MODEL_SELECTION") || exit 1
+    fi
     T3CODE_ABORT_CLEANUP=1
     ;;
 esac
@@ -3509,6 +3514,10 @@ exclude_path() {
   local rel=$1 EXCL
   EXCL=$(git -C "$WT" rev-parse --git-path info/exclude 2>/dev/null || true)
   [ -n "$EXCL" ] || return 0
+  # A linked worktree answers with an absolute common-dir path; a main
+  # worktree (a secondmate home that is a plain clone) answers relative to
+  # its own top level, not to this process's cwd.
+  case "$EXCL" in /*) ;; *) EXCL="$WT/$EXCL" ;; esac
   mkdir -p "$(dirname "$EXCL")"
   grep -qxF "$rel" "$EXCL" 2>/dev/null || echo "$rel" >> "$EXCL"
 }
@@ -4271,6 +4280,13 @@ if [ "$BACKEND" = t3code ]; then
   fi
   if [ -n "$SPAWN_TRACEPARENT" ] && spawn_record_traceparent; then
     T3CODE_ENV+=("TRACEPARENT=$SPAWN_TRACEPARENT")
+  fi
+  if [ "$KIND" = secondmate ]; then
+    # The secondmate launch prefix above, value for value, plus the supervisor
+    # identity its own away daemon cannot discover from inside a T3 thread.
+    T3CODE_ENV+=(FM_ROOT_OVERRIDE= FM_STATE_OVERRIDE= FM_DATA_OVERRIDE= FM_PROJECTS_OVERRIDE= FM_CONFIG_OVERRIDE= \
+      "FM_PUBLIC_FOLLOWUP_PRIMARY_HOME=$FM_HOME" "FM_HOME=$PROJ_ABS" "FM_TRACE_CONTEXT=$SPAWN_TRACE_EFFECTIVE" \
+      "FM_SUPERVISION_MODEL=$supervision_model" FM_SUPERVISOR_BACKEND=t3code "FM_SUPERVISOR_TARGET=$T")
   fi
   spawn_t3code_env_install "$HARNESS" "${T3CODE_ENV[@]}" || {
     echo "error: could not write the $HARNESS environment config for $ID into $WT" >&2

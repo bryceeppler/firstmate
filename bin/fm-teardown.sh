@@ -3296,13 +3296,17 @@ fi
 # pruned code root. Best effort - a sweep failure never blocks this teardown.
 "$SCRIPT_DIR/fm-remote-job-reap-orphans.sh" >&2 || true
 
-# A t3code thread is stopped and archived BEFORE its slot goes back to the pool:
-# a live thread whose worktreePath disappears re-creates it on the next turn,
-# so returning the slot first would hand T3 a path another task may take. The
-# kill is idempotent (an archived or deleted thread is already the end state),
-# so a re-run after a failed return converges; an unreachable server refuses
-# rather than returning a slot a live thread still points at.
-if [ "$BACKEND" = t3code ] && [ "$KIND" != secondmate ]; then
+# A t3code thread is stopped and archived BEFORE its slot goes back to the pool
+# or, for a secondmate, before its home is removed: a live thread whose
+# worktreePath disappears re-creates it on the next turn, so returning the slot
+# first would hand T3 a path another task may take, and the archived transcript
+# is the only record of a secondmate once its home is gone. The kill is
+# idempotent (an archived or deleted thread is already the end state), so a
+# re-run after a failed return converges; an unreachable server refuses rather
+# than returning a slot a live thread still points at. The secondmate's fm-
+# T3 project is deliberately left in place: project.delete refuses while the
+# archived thread exists and would take that transcript with it under force.
+if [ "$BACKEND" = t3code ]; then
   fm_backend_kill t3code "$T" || {
     echo "error: could not stop and archive T3 thread $T for $ID; start T3 Code (or archive the thread there) and re-run teardown" >&2
     exit 1
@@ -3403,7 +3407,7 @@ elif [ "$BACKEND" = herdr ]; then
   else
     echo "warning: herdr session presentation lock path is unavailable; skipping the pane close rather than closing unlocked" >&2
   fi
-elif [ "$BACKEND" != orca ]; then
+elif [ "$BACKEND" != orca ] && [ "$BACKEND" != t3code ]; then
   fm_backend_kill "$BACKEND" "$T" "$(meta_value "$META" zellij_tab_id)" "fm-$ID" 2>/dev/null || true
 fi
 if [ "$HERDR_PRESENTATION_RETIRE_CANDIDATE" = 1 ]; then

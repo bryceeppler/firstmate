@@ -27,9 +27,12 @@ const server = http.createServer((req, res) => {
     const world = JSON.parse(fs.readFileSync(path.join(caseDir, "world.json"), "utf8"));
     const url = new URL(req.url, "http://fake");
     const parsed = body ? JSON.parse(body) : null;
+    // probe: whether world.probePath existed when this request arrived, so a
+    // test can prove a call happened before a directory was removed.
     fs.appendFileSync(path.join(caseDir, "requests.log"), JSON.stringify({
       method: req.method, path: url.pathname, query: Object.fromEntries(url.searchParams),
       auth: req.headers.authorization || "", body: parsed,
+      probe: world.probePath ? fs.existsSync(world.probePath) : null,
     }) + "\n");
     const send = (status, obj) => {
       res.writeHead(status, { "content-type": "application/json" });
@@ -197,6 +200,14 @@ t3_dispatch_types() {
 const lines = require("fs").readFileSync(process.argv[1], "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l));
 process.stdout.write(lines.filter((r) => r.path === "/api/orchestration/dispatch").map((r) => r.body.type).join(" "));
 ' "$LOG"
+}
+
+# t3_excluded <dir> <relative path>: the path is in <dir>'s git info/exclude.
+t3_excluded() {
+  local excl
+  excl=$(git -C "$1" rev-parse --git-path info/exclude)
+  case "$excl" in /*) ;; *) excl="$1/$excl" ;; esac
+  grep -qxF "$2" "$excl"
 }
 
 t3_json_field() {  # <file> <js expression over the parsed document d>
@@ -567,7 +578,7 @@ test_spawn_leases_slot_creates_thread_and_starts_launch_turn() {
   [ "$(t3_json_field "$settings" 'd.env.FM_TASK_ID')" = "$id" ] || fail "a ship worker's settings env must carry FM_TASK_ID"
   [ "$(t3_json_field "$settings" 'd.env.TRACEPARENT')" = undefined ] || fail "TRACEPARENT must be absent when trace context is off"
   [ "$(t3_json_field "$settings" 'Object.keys(d.env).sort().join(" ")')" = "FM_TASK_ID GOTMPDIR" ] || fail "a worker env block carries exactly GOTMPDIR and FM_TASK_ID"
-  grep -qxF '.claude/settings.local.json' "$(git -C "$wt" rev-parse --git-path info/exclude)" || fail "the settings file must be git-excluded"
+  t3_excluded "$wt" .claude/settings.local.json || fail "the settings file must be git-excluded"
   [ "$(t3_log_line_of 'r.body && r.body.type === "thread.turn.start"')" -gt "$(t3_log_line_of 'r.tool === "treehouse"')" ] \
     || fail "the launch turn must follow the lease"
   rm -rf "/tmp/fm-$id"
@@ -602,31 +613,123 @@ test_spawn_codex_scout_writes_toml_env_with_traceparent() {
   case "$tp" in 00-????????????????????????????????-????????????????-??) ;; *) fail "config.toml must set a W3C TRACEPARENT when trace context is on, got '$(cat "$toml")'" ;; esac
   grep -qxF "traceparent=$tp" "$state/$id.meta" || fail "the delivered TRACEPARENT must be the one recorded in the meta, got '$(grep '^traceparent=' "$state/$id.meta")'"
   assert_absent "$wt/.claude/settings.local.json" "a codex worker writes no Claude settings"
-  grep -qxF '.codex/config.toml' "$(git -C "$wt" rev-parse --git-path info/exclude)" || fail "config.toml must be git-excluded"
+  t3_excluded "$wt" .codex/config.toml || fail "config.toml must be git-excluded"
   [ "$(t3_dispatch_types)" = "thread.create thread.turn.start" ] || fail "spawn must dispatch thread.create then thread.turn.start, got '$(t3_dispatch_types)'"
   rm -rf "/tmp/fm-$id"
   pass "fm-spawn.sh --backend t3code codex: writes .codex/config.toml with GOTMPDIR, FM_TASK_ID, and TRACEPARENT"
 }
 
-test_spawn_refuses_t3code_secondmate_before_home_mutation() {
-  local home subhome data state config id out status
+# A seeded secondmate home on its own git branch, with the charter the launch
+# turn must carry (validate_firstmate_home_for_spawn needs the marker,
+# AGENTS.md, and bin/). The primary home is $CASE_DIR/home with the case's
+# config dir, so the bearer is read from there.
+make_t3_secondmate_home() {  # <home> <id>
+  local home=$1 id=$2
+  mkdir -p "$home/bin" "$home/data"
+  printf '# Firstmate\n' > "$home/AGENTS.md"
+  printf '%s\n' "$id" > "$home/.fm-secondmate-home"
+  printf '# Charter\nRun the fleet for the T3 secondmate test.\n' > "$home/data/charter.md"
+  git -C "$home" init -q -b sm/home
+  git -C "$home" add -A
+  git -C "$home" -c user.name=t -c user.email=t@example.invalid commit -qm seed
+}
+
+# spawn_t3_secondmate <id> <home> <harness> <model> -> spawn output; status in $?
+spawn_t3_secondmate() {
+  local id=$1 home=$2 harness=$3 model=$4
+  mkdir -p "$CASE_DIR/home/state" "$CASE_DIR/home/data"
+  touch "$CASE_DIR/home/state/.last-watcher-beat"
+  HOME="$SPAWN_HOME" CLAUDE_CONFIG_DIR='' FM_T3CODE_ORIGIN="$ORIGIN" \
+    FM_ROOT_OVERRIDE="$ROOT" FM_HOME="$CASE_DIR/home" FM_STATE_OVERRIDE="$CASE_DIR/home/state" FM_DATA_OVERRIDE="$CASE_DIR/home/data" \
+    FM_CONFIG_OVERRIDE="$CONFIG" FM_PROJECTS_OVERRIDE="$CASE_DIR/home/projects" FM_SPAWN_NO_GUARD=1 \
+    "$ROOT/bin/fm-spawn.sh" "$id" "$home" "$harness" --model "$model" --backend t3code --secondmate 2>&1
+}
+
+# The eleven variables a t3code secondmate must find in its environment: the
+# nine of the pane launch prefix, value for value, plus its supervisor identity.
+assert_t3_secondmate_env() {  # <reader "<file>"> <label> <home> <thread> <supervision-model>
+  local read=$1 label=$2 home=$3 thread=$4 model=$5 name expect
+  while IFS='=' read -r name expect; do
+    [ "$($read "$name")" = "$expect" ] || fail "$label: $name should be '$expect', got '$($read "$name")'"
+  done <<EOF
+FM_ROOT_OVERRIDE=
+FM_STATE_OVERRIDE=
+FM_DATA_OVERRIDE=
+FM_PROJECTS_OVERRIDE=
+FM_CONFIG_OVERRIDE=
+FM_PUBLIC_FOLLOWUP_PRIMARY_HOME=$CASE_DIR/home
+FM_HOME=$home
+FM_TRACE_CONTEXT=off
+FM_SUPERVISION_MODEL=$model
+FM_SUPERVISOR_BACKEND=t3code
+FM_SUPERVISOR_TARGET=$thread
+EOF
+  [ "$($read FM_TASK_ID)" = undefined ] || fail "$label: a secondmate is not a task worker and must not carry FM_TASK_ID"
+  [ "$($read TRACEPARENT)" = undefined ] || fail "$label: TRACEPARENT must be absent when trace context is off"
+}
+
+test_spawn_secondmate_runs_thread_in_home_with_env() {
+  local id home out thread project create turn settings
   id="t3smz1"
-  home="$TMP_ROOT/secondmate-refusal-home"
-  subhome="$TMP_ROOT/secondmate-refusal-subhome"
-  data="$home/data"; state="$home/state"; config="$home/config"
-  mkdir -p "$data" "$state" "$config" "$subhome/bin" "$subhome/data" "$subhome/state" "$subhome/projects"
-  printf '%s\n' "$id" > "$subhome/.fm-secondmate-home"
-  printf 'firstmate\n' > "$subhome/AGENTS.md"
-  printf 'claude\n' > "$config/crew-harness"
-  touch "$state/.last-watcher-beat"
-  out=$( FM_ROOT_OVERRIDE="$ROOT" FM_HOME="$home" FM_STATE_OVERRIDE="$state" FM_DATA_OVERRIDE="$data" FM_CONFIG_OVERRIDE="$config" \
-    FM_PROJECTS_OVERRIDE="$home/projects" FM_SPAWN_NO_GUARD=1 \
-    "$ROOT/bin/fm-spawn.sh" "$id" "$subhome" claude --backend t3code --secondmate 2>&1 )
-  status=$?
-  [ "$status" -ne 0 ] || fail "backend=t3code --secondmate should be refused"
-  assert_contains "$out" "backend=t3code does not support --secondmate spawns yet" "the secondmate refusal should happen at backend selection"
-  assert_absent "$subhome/config/crew-harness" "the refusal must not propagate inherited local material into the secondmate home"
-  pass "fm-spawn.sh --backend t3code --secondmate: refuses before secondmate-home mutation"
+  t3_case spawn-secondmate ready
+  home="$CASE_DIR/sm-home"
+  make_t3_secondmate_home "$home" "$id"
+  out=$(spawn_t3_secondmate "$id" "$home" claude claude-sonnet-5)
+  expect_code 0 $? "fm-spawn.sh --backend t3code --secondmate should succeed against the fake T3 server"$'\n'"$out"
+  [ "$(t3_dispatch_types)" = "project.create thread.create thread.turn.start" ] \
+    || fail "a secondmate spawn must create the home's project, then the thread, then start the launch turn, got '$(t3_dispatch_types)'"
+  create=$(t3_log_line_of 'r.body && r.body.type === "project.create"')
+  [ "$(t3_request "$create" 'r.body.title')" = fm-sm-home ] || fail "the home's T3 project must carry the fm- prefixed title, got '$(t3_request "$create" 'r.body.title')'"
+  [ "$(t3_request "$create" 'r.body.workspaceRoot')" = "$(cd "$home" && pwd -P)" ] || fail "the home's T3 project workspaceRoot must be the home"
+  project=$(t3_request "$create" 'r.body.projectId')
+  create=$(t3_log_line_of 'r.body && r.body.type === "thread.create"')
+  thread=$(t3_request "$create" 'r.body.threadId')
+  [ "$(t3_request "$create" 'r.body.projectId')" = "$project" ] || fail "the thread must be created on the home's project"
+  [ "$(t3_request "$create" 'r.body.worktreePath')" = null ] || fail "a secondmate thread runs in the home: worktreePath must be null, got '$(t3_request "$create" 'r.body.worktreePath')'"
+  [ "$(t3_request "$create" 'r.body.branch')" = sm/home ] || fail "thread.create must carry the home's current branch, got '$(t3_request "$create" 'r.body.branch')'"
+  [ "$(t3_request "$create" 'r.body.title')" = "fm-$id" ] || fail "thread.create title should be the window alias"
+  [ "$(t3_request "$create" 'r.body.modelSelection')" = '{"instanceId":"claudeAgent","model":"claude-sonnet-5"}' ] || fail "thread.create must carry the secondmate's model selection"
+  turn=$(t3_log_line_of 'r.body && r.body.type === "thread.turn.start"')
+  [ "$(t3_request "$turn" 'r.body.threadId')" = "$thread" ] || fail "the launch turn must target the created thread"
+  assert_contains "$(t3_request "$turn" 'r.body.message.text')" "FIRSTMATE_OP: v1 launch-brief:" "the launch turn must carry the encoded brief"
+  assert_contains "$(t3_request "$turn" 'r.body.message.text')" "Run the fleet for the T3 secondmate test." "the launch turn must carry the charter body"
+  assert_grep "backend=t3code" "$CASE_DIR/home/state/$id.meta" "meta missing backend=t3code"
+  assert_grep "kind=secondmate" "$CASE_DIR/home/state/$id.meta" "meta missing kind=secondmate"
+  assert_grep "home=$home" "$CASE_DIR/home/state/$id.meta" "meta missing home="
+  assert_grep "t3_thread_id=$thread" "$CASE_DIR/home/state/$id.meta" "meta missing the created thread id"
+  assert_grep "t3_project_id=$project" "$CASE_DIR/home/state/$id.meta" "meta missing the created project id"
+  settings="$home/.claude/settings.local.json"
+  assert_present "$settings" "a claude secondmate home gets .claude/settings.local.json"
+  [ "$(t3_json_field "$settings" 'd.hooks')" = undefined ] || fail "a secondmate home carries no busy hooks"
+  [ "$(t3_json_field "$settings" 'Object.keys(d.env).length')" = 12 ] || fail "the env block should carry GOTMPDIR plus the eleven secondmate variables, got $(t3_json_field "$settings" 'Object.keys(d.env)')"
+  [ "$(t3_json_field "$settings" 'd.env.GOTMPDIR')" = "/tmp/fm-$id/gotmp" ] || fail "settings env must carry GOTMPDIR"
+  read_settings() { t3_json_field "$settings" "d.env[\"$1\"]"; }
+  assert_t3_secondmate_env read_settings "claude secondmate settings env" "$home" "$thread" autoarm
+  t3_excluded "$home" .claude/settings.local.json || fail "the settings file must be git-excluded in the home"
+  assert_absent "$home/.codex/config.toml" "a claude secondmate writes no codex config"
+  rm -rf "/tmp/fm-$id"
+  pass "fm-spawn.sh --backend t3code --secondmate: project on the home, worktree-less thread, charter turn, launch prefix as settings env"
+}
+
+test_spawn_codex_secondmate_writes_toml_env() {
+  local id home out thread toml
+  id="t3smz2"
+  t3_case spawn-secondmate-codex ready
+  home="$CASE_DIR/sm-home-codex"
+  make_t3_secondmate_home "$home" "$id"
+  out=$(spawn_t3_secondmate "$id" "$home" codex gpt-5.6-sol)
+  expect_code 0 $? "a codex secondmate on t3code should spawn against the fake T3 server"$'\n'"$out"
+  [ "$(t3_dispatch_types)" = "project.create thread.create thread.turn.start" ] || fail "unexpected dispatches '$(t3_dispatch_types)'"
+  thread=$(t3_request "$(t3_log_line_of 'r.body && r.body.type === "thread.create"')" 'r.body.threadId')
+  toml="$home/.codex/config.toml"
+  assert_present "$toml" "a codex secondmate home gets .codex/config.toml"
+  [ "$(t3_toml_env "$toml" GOTMPDIR)" = "/tmp/fm-$id/gotmp" ] || fail "config.toml must set GOTMPDIR, got '$(cat "$toml")'"
+  read_toml() { t3_toml_env "$toml" "$1"; }
+  assert_t3_secondmate_env read_toml "codex secondmate config.toml" "$home" "$thread" persistent
+  t3_excluded "$home" .codex/config.toml || fail "config.toml must be git-excluded in the home"
+  assert_absent "$home/.claude/settings.local.json" "a codex secondmate writes no Claude settings"
+  rm -rf "/tmp/fm-$id"
+  pass "fm-spawn.sh --backend t3code --secondmate codex: launch prefix as .codex/config.toml shell_environment_policy"
 }
 
 test_spawn_refuses_t3code_when_token_rejected() {
@@ -688,6 +791,35 @@ test_scout_teardown_stops_and_archives_before_slot_return() {
   pass "fm-teardown.sh backend=t3code: stops and archives the thread, then returns the slot"
 }
 
+test_secondmate_teardown_archives_thread_before_home_removal_without_project_delete() {
+  local home data state config id out rc thread=4e0f2a6b-9d3c-4b5e-af4f-0123456789cd archive_line
+  id="t3smtdz1"
+  t3_case teardown-secondmate running
+  t3_world "$(t3_thread_json "$thread" running null)"
+  home="$CASE_DIR/sm-home"; data="$CASE_DIR/data"; state="$CASE_DIR/state"; config="$CONFIG"
+  mkdir -p "$data" "$state" "$home/state" "$home/data" "$home/config" "$home/projects" "$home/bin" "$home/.claude"
+  printf '%s\n' "$id" > "$home/.fm-secondmate-home"
+  printf '# Firstmate\n' > "$home/AGENTS.md"
+  printf '{"env":{"FM_HOME":"%s"}}\n' "$home" > "$home/.claude/settings.local.json"
+  touch "$state/.last-watcher-beat"
+  fm_write_meta "$state/$id.meta" \
+    "window=fm-$id" "endpoint_task_id=$id" "worktree=$home" "project=$home" \
+    "harness=claude" "kind=secondmate" "mode=secondmate" "yolo=off" \
+    "backend=t3code" "t3_thread_id=$thread" "t3_project_id=proj-sm" "home=$home"
+  FM_T3_HOME="$home" t3_world_set 'w.probePath = process.env.FM_T3_HOME'
+  out=$( FM_T3CODE_ORIGIN="$ORIGIN" FM_ROOT_OVERRIDE="$ROOT" FM_HOME="$CASE_DIR/home" \
+    FM_STATE_OVERRIDE="$state" FM_DATA_OVERRIDE="$data" FM_CONFIG_OVERRIDE="$config" \
+    "$ROOT/bin/fm-teardown.sh" "$id" --force 2>&1 )
+  rc=$?
+  expect_code 0 "$rc" "t3code secondmate teardown should succeed"$'\n'"$out"
+  [ "$(t3_dispatch_types)" = "thread.session.stop thread.archive" ] || fail "secondmate teardown must stop then archive exactly once and never delete the project, got '$(t3_dispatch_types)'"
+  archive_line=$(t3_log_line_of 'r.body && r.body.type === "thread.archive"')
+  [ "$(t3_request "$archive_line" 'r.probe')" = true ] || fail "the thread must be archived while the home still exists"
+  assert_absent "$home" "teardown should remove the secondmate home"
+  assert_absent "$state/$id.meta" "teardown should remove task metadata"
+  pass "fm-teardown.sh backend=t3code secondmate: stops and archives before the home is removed, leaves the T3 project"
+}
+
 test_teardown_refuses_when_t3_is_unreachable() {
   local proj wt data state id out rc neutral fb thread=3d9e1f5a-8c2b-4a4d-8f3e-fedcba543210
   id="t3teardownz2"
@@ -733,7 +865,9 @@ test_busy_classify_trusts_native_idle_and_busy
 test_control_lib_tables
 test_spawn_leases_slot_creates_thread_and_starts_launch_turn
 test_spawn_codex_scout_writes_toml_env_with_traceparent
-test_spawn_refuses_t3code_secondmate_before_home_mutation
+test_spawn_secondmate_runs_thread_in_home_with_env
+test_spawn_codex_secondmate_writes_toml_env
 test_spawn_refuses_t3code_when_token_rejected
 test_scout_teardown_stops_and_archives_before_slot_return
+test_secondmate_teardown_archives_thread_before_home_removal_without_project_delete
 test_teardown_refuses_when_t3_is_unreachable
