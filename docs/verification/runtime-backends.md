@@ -1509,14 +1509,14 @@ Observed session statuses were `null` after create, `starting` then `running` on
 T3 launched Claude with the `user,project,local` setting sources and the bypass-permissions mode, and a user-scope SessionStart hook fired inside the thread, so worktree-resident Firstmate hooks fire.
 A model slug outside the catalog was rejected with "unknown provider for model" and the session went to `error`.
 Neither `thread.archive` nor `thread.delete` touched the worktree.
-A Codex mid-turn steer was not exercised and stays unverified.
 
 ```sh
 tests/fm-backend-t3code.test.sh
 tests/fm-backend.test.sh
+tests/fm-daemon.test.sh
 ```
 
-The fake-server suite covers the token and version gates, project matching, the create and turn-start payloads, the effort option ids, capture rendering, key mapping, the status table, the stop-then-archive kill, the per-directory environment files, worker and secondmate spawn, teardown ordering, and the home thread lookup the away daemon uses; `tests/fm-daemon.test.sh` covers the daemon's t3code discovery precedence and busy verdict.
+The fake-server suite covers the token and version gates, project matching, the create and turn-start payloads, the effort option ids, capture rendering, key mapping, the status table, the stop-then-archive kill, the per-directory environment files, worker and secondmate spawn, the tracked codex config refusal, teardown ordering, the control plane's native exit and relaunch refusal, and the home thread lookup the away daemon uses; `tests/fm-daemon.test.sh` covers the daemon's t3code discovery precedence and busy verdict.
 
 A live Firstmate smoke ran later the same day through the adapter itself, with `backend=t3code`, a `claude` scout at `claude-sonnet-5` and `low` effort, and a Treehouse-pooled project clone.
 `fm-spawn.sh` leased the slot, created the thread on it with the effort carried as a provider option, and started the brief as the first turn.
@@ -1555,13 +1555,36 @@ The thread read showed the captain's messages in that order, ending with its tea
 A `codex` scout ran the same day through `bin/fm-spawn.sh <id> <project> --scout --harness codex --model gpt-5.6-sol --effort low --backend t3code`: the slot was leased, the thread was created on the `codex` instance with `reasoningEffort` as the provider option, and the launch turn started.
 `fm-crew-state.sh` read `working` from the `t3code-native` source while the session was `running`, and `fm-teardown.sh --force` later stopped and archived the thread and returned the slot, after which the thread read `http-404`.
 A diagnostic `fm_backend_t3code_turn_start` sent while the session was `ready` came back within 30 seconds.
-Two items stay open from that run: the scout's own report of the completion gate as blocked was the Codex agent's reading of the captain-hold lifecycle gate, since the same steer showed `tasks-axi` installed at a compatible version, and the Codex mid-turn steer is still unverified because that steer went to an idle session.
+The scout's `blocked` status line came from `bin/fm-captain-hold.sh complete <id> --none`, which the Codex agent ran through `/bin/zsh -lc` and which answered `fm-captain-hold: compatible tasks-axi is required`; a `command -v tasks-axi` in the same login shell printed nothing, while the diagnostic steer, which the agent ran through `bash -c`, found `tasks-axi` 0.2.5 on the inherited `PATH`.
+A later Codex thread on the same server ran `command -v tasks-axi` through its own `/bin/zsh -lc` and found it, so the login shell's `PATH` is what a Codex task sees and the first refusal was that shell's state at the time, not the adapter's.
 A secondmate ran the same day on the code that delivers the launch prefix as per-directory config: `bin/fm-home-seed.sh <id> - --no-projects` leased a fresh firstmate worktree as the home, and `bin/fm-spawn.sh <id> <home> --secondmate --harness claude --model claude-sonnet-5 --effort low --backend t3code` registered that home as a T3 project titled `fm-firstmate`, created a thread with `worktreePath: null`, and wrote the home's `.claude/settings.local.json` with an `env` block of exactly twelve entries: `GOTMPDIR`, the five empty `FM_*_OVERRIDE` values, `FM_PUBLIC_FOLLOWUP_PRIMARY_HOME`, `FM_HOME`, `FM_TRACE_CONTEXT`, `FM_SUPERVISION_MODEL`, `FM_SUPERVISOR_BACKEND`, and `FM_SUPERVISOR_TARGET`.
 The secondmate's first turn, asked by its charter to print those variables through its shell tool, returned every value as written and its `pwd` as the home.
 `bin/fm-teardown.sh <id> --force` stopped and archived the thread (it reads `http-404` afterwards), returned the home worktree, removed the task state, and dropped the registry row; the `fm-firstmate` project stayed in T3 as documented.
 
 Away-mode discovery ran the same day from inside a captain thread on the firstmate home: a turn asking the captain to run `discover_supervisor_backend` and `discover_supervisor_target` from `bin/fm-supervisor-target-lib.sh` returned `t3code` and the captain's own thread id, both with exit status 0, with no `FM_SUPERVISOR_*`, `TMUX_PANE`, or `HERDR_*` variable set.
-The daemon itself was not started through `start-native` in that thread, so injection into a T3 captain remains covered by the fake-backend daemon tests only.
+
+An away-mode drill ran the same day end to end in that captain thread, after the branch was rebased onto upstream `a6618dd`.
+One `thread.turn.start` instructed the captain to enter away mode through `/afk` on the native path (`bin/fm-afk-launch.sh start-native`, then `FM_AFK_STATE_PREPARED=1 bin/fm-afk-start.sh` through its tracked background tool), dispatch one `claude` scout at `claude-sonnet-5` and `low` effort onto this backend with a brief that reports itself blocked, and end the turn.
+`state/.supervise-daemon.log` opened with `daemon starting (pid ...); target=<captain thread id>; target_source=T3_THREAD; backend=t3code; backend_source=T3_THREAD; afk=on`, then `wake: signal: ... <id>.status ... <id>.turn-ended` and `escalate: ... -> <id>.status: blocked: afk drill: needs a captain decision` one minute after the captain's turn ended.
+The captain's session read `ready` from the end of its turn until, one batch window later, its thread read gained a user message with no operator behind it:
+
+```text
+FIRSTMATE_OP: v1 away-supervisor: Supervisor escalate (       1 event(s)): <id>.status: blocked: afk drill: needs a captain decision (pre-read; re-arm not needed — watcher daemon-managed)
+```
+
+The session read `running` and the captain answered that message within three seconds, as instructed, without acting on it.
+`bin/fm-afk-launch.sh stop` from a shell then logged `away mode stopped; daemon terminal torn down, .afk cleared, and the posture record archived`, the daemon logged `daemon shutting down`, and no daemon or watcher process remained.
+
+The control plane ran the same day against that drill's scout while its session read `ready`.
+`bin/fm-control.sh <id> relaunch --note <text>` refused with `runs on the t3code backend, where a thread is bound to its driver and a new turn continues the same agent`, exit status 1, and the session still read `ready` afterwards.
+`bin/fm-control.sh <id> exit` printed `stopped <id> harness=claude backend=t3code endpoint=<thread id> worktree=<slot>` within two seconds, after which `fm_backend_t3code_probe` read `stopped`, and a second `exit` printed `already-stopped <id> ...` with exit status 0.
+`bin/fm-teardown.sh <id> --force` then archived the stopped thread (it reads `http-404` afterwards) and returned the slot.
+
+A Codex mid-turn steer ran the same day on a `codex` thread at `gpt-5.6-sol` and `low` effort created with `worktreePath: null` on a scratch project.
+The first `thread.turn.start` asked for a count to 60 with a two-second shell sleep between numbers; 27 seconds after the session read `running`, a second `thread.turn.start` asked the agent to stop and reply with the words `steer landed` and the last number.
+The reply `steer landed 17` arrived 19 seconds later, carried the first turn's id, and that turn read `completed` at the same moment, so Codex answers a mid-turn `thread.turn.start` inside the live turn exactly as Claude does.
+`thread.session.stop` then read `stopped`, and a further `thread.turn.start` with the same `codex` selection read `running` and answered `RESTART_OK 17`, so a turn on a stopped thread restarts the same agent with its transcript.
+The same `thread.turn.start` on a stopped `codex` thread with a `claudeAgent` selection was accepted by the dispatch route but left the session in `error` with `lastError` reading `Thread '<id>' is bound to driver 'codex' and cannot switch to 'claudeAgent'.`, which is why the control plane refuses `relaunch` on this backend rather than restarting a thread under another harness.
 
 ## Codex App host tools
 

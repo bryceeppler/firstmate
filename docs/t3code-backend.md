@@ -74,11 +74,18 @@ Exact command payloads are owned by `bin/backends/t3code.sh`.
 
 `fm-peek.sh` renders `[role] text` for the recent messages followed by a `t3code: session=<status> turn=<state>` line.
 An ordinary metadata-routed `fm-send.sh` text steer becomes a durable steering-inbox record, and its doorbell is a `thread.turn.start` on the thread.
-Sent while a turn runs, Claude treats that as a steer into the live turn.
+Sent while a turn runs, both Claude and Codex answer it inside the live turn.
 Escape and Ctrl-C are both a `thread.turn.interrupt`; Enter is a no-op and Ctrl-U is unsupported.
+
+The control plane ([`agent-control.md`](agent-control.md)) reads the same status table.
+`interrupt` is a `thread.turn.interrupt` proven by the session still reading alive afterwards.
+`exit` is a `thread.session.stop`, since a thread has no composer to type an exit command into, proven by the session reading `stopped`; the thread and its transcript stay, and a later turn restarts the same agent with that transcript.
+`relaunch` is refused before anything is stopped: a T3 thread is bound to the driver that first ran it, and a turn on a stopped thread continues the same agent, so no replacement agent can be launched into the endpoint.
 
 The watcher and `fm-crew-state.sh` read the server's own session status through one table in the adapter, and both native verdicts are trusted ahead of every harness gate and hook record (source `t3code-native`), so a codex crew settles from T3's status even though codex has no verified hook writer; only an unreadable server falls through to the ordinary contract.
 T3 launches Claude with the `user,project,local` setting sources, so the worktree `.claude/settings.local.json` busy hooks fire as on every other backend.
+Codex runs each of its commands through `/bin/zsh -lc`, so the Firstmate toolchain must be on the login shell's `PATH`, not only on the T3 server's.
+A remote secondmate is unaffected by this backend: it always runs on the remote host's Herdr, and `--backend t3code` on one is refused.
 
 Cleanup keeps all shared Firstmate safety checks.
 Before the slot returns to the pool, or before a secondmate home is removed, teardown stops the session and archives the thread (`thread.session.stop`, then `thread.archive`), because a live thread whose worktree path disappears re-creates that worktree on its next turn.
@@ -105,7 +112,9 @@ The branch can be left with `git switch main`.
 ## Active limits
 
 - T3 Code is explicit-only and experimental, and runs only `claude` and `codex`.
-- A mid-turn steer on Codex is forwarded to the app-server turn start and is unverified.
+- `fm-control.sh relaunch` is refused: a T3 thread is bound to its driver, and a turn on a stopped thread continues the same agent rather than launching a replacement.
+- A `codex` task refuses a project that tracks `.codex/config.toml`, because that file is the backend's environment channel and teardown removes it.
+- The Claude task-worker channel-authority statement that a pane launch appends to the system prompt has no channel on T3; the brief and every steer arrive as the thread's own user turns.
 - Ctrl-U is unsupported.
 - A Codex captain on this backend has no away mode: Codex has no tracked background tool for `start-native`, and `start` has no terminal to create.
 - The version floor ignores a prerelease tag, so the verified `0.0.41` nightly passes.
@@ -116,6 +125,7 @@ The branch can be left with `git switch main`.
 tests/fm-backend-t3code.test.sh
 tests/fm-backend.test.sh
 tests/fm-daemon.test.sh
+tests/fm-control.test.sh
 ```
 
 [`verification/runtime-backends.md`](verification/runtime-backends.md#t3-code) records the live probes.
