@@ -51,10 +51,11 @@
 #   1. dead endpoint (fm_busy_classify_live only) -> dead endpoint-gone
 #   2. standalone Kimi before verification       -> unknown kimi-unverified
 #   3. a valid, gen-matching, source-trusted record -> its state and source
+#   0. a t3code task: the T3 server's own session status when it reads busy
+#      or idle (the provider reports it for claude and codex alike, and no
+#      shell sits in front of the agent); an unreadable server falls through
 #   4. no record at all: herdr's native busy verdict is trusted as busy
-#      (generation state is sufficient for busy, not for idle), t3code's
-#      native busy AND idle are both trusted (the provider reports its own
-#      session status and no shell sits in front of the agent), then the
+#      (generation state is sufficient for busy, not for idle), then the
 #      muse session-log and cursor transcript pull sources, then the
 #      Grok/Rovo/AGY temporary regex fallbacks classify a grok, rovo, or agy
 #      task from its rendered tail, then unknown missing
@@ -878,6 +879,18 @@ fm_busy_agy_tail_busy() {
 fm_busy_classify() {  # <backend> <target> <harness> <id> <state-dir> [tail40]
   local backend=$1 target=$2 harness=$3 id=$4 state=$5 tail40=${6-}
   local out rc r_state r_source native log
+  # t3code first: the T3 server reports the session status for claude and
+  # codex alike, so a codex crew is classified from it instead of falling to
+  # the codex-unverified gate below; only an unreadable server falls through.
+  if [ "$backend" = t3code ] && command -v fm_backend_busy_state >/dev/null 2>&1; then
+    native=$(fm_backend_busy_state "$backend" "$target" 2>/dev/null || true)
+    case "$native" in
+      busy|idle)
+        printf '%s t3code-native' "$native"
+        return 0
+        ;;
+    esac
+  fi
   case "$harness" in
     kimi*)
       if ! fm_busy_kimi_verified; then
@@ -938,15 +951,6 @@ fm_busy_classify() {  # <backend> <target> <harness> <id> <state-dir> [tail40]
       printf 'busy herdr-native'
       return 0
     fi
-  fi
-  if [ "$backend" = t3code ] && command -v fm_backend_busy_state >/dev/null 2>&1; then
-    native=$(fm_backend_busy_state "$backend" "$target" 2>/dev/null || true)
-    case "$native" in
-      busy|idle)
-        printf '%s t3code-native' "$native"
-        return 0
-        ;;
-    esac
   fi
   case "$harness" in
     muse*)

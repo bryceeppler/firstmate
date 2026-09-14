@@ -66,7 +66,7 @@ An ordinary metadata-routed `fm-send.sh` text steer becomes a durable steering-i
 Sent while a turn runs, Claude treats that as a steer into the live turn.
 Escape and Ctrl-C are both a `thread.turn.interrupt`; Enter is a no-op and Ctrl-U is unsupported.
 
-The watcher and `fm-crew-state.sh` read the server's own session status through one table in the adapter, and both native verdicts are trusted when a task has no hook record (source `t3code-native`): there is no shell in front of the agent to misread.
+The watcher and `fm-crew-state.sh` read the server's own session status through one table in the adapter, and both native verdicts are trusted ahead of every harness gate and hook record (source `t3code-native`), so a codex crew settles from T3's status even though codex has no verified hook writer; only an unreadable server falls through to the ordinary contract.
 T3 launches Claude with the `user,project,local` setting sources, so the worktree `.claude/settings.local.json` busy hooks fire as on every other backend.
 
 Cleanup keeps all shared Firstmate safety checks.
@@ -85,7 +85,6 @@ The branch can be left with `git switch main`.
 
 - T3 Code is explicit-only and experimental, refuses secondmate spawns, and runs only `claude` and `codex`.
 - There is no channel for the pane-typed exports, so `GOTMPDIR`, `FM_TASK_ID`, and `TRACEPARENT` never reach a T3-launched agent; the per-task temp root is still created and removed, but Go builds do not use it and trace context is not delivered.
-- A codex task still classifies `unknown codex-unverified` from the busy contract, as on every backend, so its T3 session status is visible only in `fm-peek.sh`.
 - A mid-turn steer on Codex is forwarded to the app-server turn start and is unverified.
 - Ctrl-U is unsupported.
 - The version floor ignores a prerelease tag, so the verified `0.0.41` nightly passes.
