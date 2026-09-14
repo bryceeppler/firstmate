@@ -1518,6 +1518,14 @@ tests/fm-backend.test.sh
 
 The fake-server suite covers the token and version gates, project matching, the create and turn-start payloads, the effort option ids, capture rendering, key mapping, the status table, the stop-then-archive kill, spawn, and teardown ordering.
 
+A live Firstmate smoke ran later the same day through the adapter itself, with `backend=t3code`, a `claude` scout at `claude-sonnet-5` and `low` effort, and a Treehouse-pooled project clone.
+`fm-spawn.sh` leased the slot, created the thread on it with the effort carried as a provider option, and started the brief as the first turn.
+The scout's report showed its working directory and git common directory resolving to the leased worktree.
+The worktree `.claude/settings.local.json` Stop hook wrote a `claude-hook` idle record from inside the thread, `fm-peek.sh` rendered the transcript, and `fm-crew-state.sh` read `working` from the `t3code-native` source while the turn ran.
+`fm-teardown.sh` stopped the session, archived the thread with its messages intact, returned the slot to the pool, and cleared the task state; the archived thread answers 404 on the thread read route and is absent from the shell snapshot.
+Teardown also reaped agent processes still alive in the worktree after `thread.session.stop`, so the stop is asynchronous on the server side.
+A `codex` scout on this backend has not been run live.
+
 ## Codex App host tools
 
 A reusable Desktop host-tool smoke ran on 2026-07-06 against Codex Desktop bundle version 26.623.101652, build 4674, bundle id `com.openai.codex`.
