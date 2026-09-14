@@ -72,7 +72,9 @@
 #   t3code is explicit-only and experimental (docs/t3code-backend.md): T3 Code
 #   owns the agent session, so the spawn leases a treehouse slot durably,
 #   creates a T3 thread on it, and starts the launch turn over HTTP instead of
-#   typing into a pane; only claude and codex harnesses, no --secondmate.
+#   typing into a pane; only claude and codex harnesses. The exports a pane
+#   would receive before launch travel as per-directory harness config instead
+#   (spawn_t3code_env_install).
 #   A backend spawn refusal (missing dependency, version gate, unauthenticated
 #   socket, or unsupported secondmate mode) is terminal for that selected backend;
 #   callers must surface it instead of silently retrying another backend.
@@ -3510,6 +3512,51 @@ exclude_path() {
   mkdir -p "$(dirname "$EXCL")"
   grep -qxF "$rel" "$EXCL" 2>/dev/null || echo "$rel" >> "$EXCL"
 }
+# spawn_t3code_env_install <harness> NAME=VALUE... - the t3code channel for the
+# exports a pane shell would receive before launch. T3 sets environment per
+# provider instance, never per thread, but each harness reads its own
+# per-directory config from the thread's cwd ($WT): Claude's
+# .claude/settings.local.json `env` block (merged into the file so the busy
+# hooks written above survive; the env block itself is replaced wholesale so a
+# respawn never inherits a stale value) and Codex's .codex/config.toml
+# `[shell_environment_policy] set` table (TOML basic strings). Both files are
+# git-excluded like every other per-task harness file; fm-teardown.sh removes
+# them with the hook files.
+spawn_t3code_env_install() {
+  local harness=$1
+  shift
+  case "$harness" in
+    claude)
+      mkdir -p "$WT/.claude"
+      node -e '
+const fs = require("fs");
+const [file, ...pairs] = process.argv.slice(1);
+let data = {};
+try { data = JSON.parse(fs.readFileSync(file, "utf8")); }
+catch (err) { if (err.code !== "ENOENT") throw err; }
+data.env = {};
+for (const pair of pairs) { const eq = pair.indexOf("="); data.env[pair.slice(0, eq)] = pair.slice(eq + 1); }
+fs.writeFileSync(file, JSON.stringify(data) + "\n");
+' "$WT/.claude/settings.local.json" "$@" || return 1
+      exclude_path '.claude/settings.local.json'
+      ;;
+    codex)
+      mkdir -p "$WT/.codex"
+      # shellcheck disable=SC2016  # Single quotes are deliberate: ${...} belongs to the Node snippet.
+      node -e '
+const [file, ...pairs] = process.argv.slice(1);
+const basic = (s) => JSON.stringify(s);  // JSON string escapes are a subset of TOML basic-string escapes.
+const set = pairs.map((pair) => { const eq = pair.indexOf("="); return `${pair.slice(0, eq)} = ${basic(pair.slice(eq + 1))}`; });
+require("fs").writeFileSync(file, `[shell_environment_policy]\nset = { ${set.join(", ")} }\n`);
+' "$WT/.codex/config.toml" "$@" || return 1
+      exclude_path '.codex/config.toml'
+      ;;
+    *)
+      echo "error: backend=t3code has no environment channel for harness '$harness'" >&2
+      return 1
+      ;;
+  esac
+}
 if [ "$RELAUNCH" -eq 1 ]; then
   # Retire the previous incarnation's per-task harness wiring before arming the
   # new one. Without this, a harness switch would leave the old adapter's hook
@@ -4212,23 +4259,40 @@ spawn_record_traceparent() {
   return "$status"
 }
 
+if [ "$BACKEND" = t3code ]; then
+  # No pane to export into: the same facts, under the same conditions as the
+  # pane path below, become the launch directory's harness config
+  # (spawn_t3code_env_install). TRACEPARENT is delivered only once its meta
+  # record exists, the same delivered-implies-recorded invariant the pane path
+  # keeps by unsetting it when the record fails.
+  T3CODE_ENV=("GOTMPDIR=$TASK_TMP/gotmp")
+  if [ "$KIND" = ship ] || [ "$KIND" = scout ]; then
+    T3CODE_ENV+=("FM_TASK_ID=$ID")
+  fi
+  if [ -n "$SPAWN_TRACEPARENT" ] && spawn_record_traceparent; then
+    T3CODE_ENV+=("TRACEPARENT=$SPAWN_TRACEPARENT")
+  fi
+  spawn_t3code_env_install "$HARNESS" "${T3CODE_ENV[@]}" || {
+    echo "error: could not write the $HARNESS environment config for $ID into $WT" >&2
+    exit 1
+  }
+else
 # Export GOTMPDIR into the crewmate's pane shell so the agent and every child
 # process (go build, go test, ...) inherit it. Sent before the launch command so
 # the env is set when the agent starts; the brief sleep lets the export land.
-[ "$BACKEND" = t3code ] || spawn_send_text_line "$T" "export GOTMPDIR=$TASK_TMP/gotmp"
+spawn_send_text_line "$T" "export GOTMPDIR=$TASK_TMP/gotmp"
 # Mark the pane as a task worker so bin/fm-test-run.sh can refuse to run the
 # suite in the repository's primary checkout. Ship and scout workers are the
 # ones assigned an isolated worktree; a secondmate runs its own home instead.
 # The id reached a validated bare-slug charset above, so it carries no shell
 # syntax of its own.
-if { [ "$KIND" = ship ] || [ "$KIND" = scout ]; } && [ "$BACKEND" != t3code ]; then
+if [ "$KIND" = ship ] || [ "$KIND" = scout ]; then
   spawn_send_text_line "$T" "export FM_TASK_ID=$ID"
 fi
 # Send through the exact channel that already ships GOTMPDIR, so every backend
 # and harness - ship, scout, and secondmate - gets it before launch. Skipped
-# entirely when trace context is off. t3code has no channel for any of these
-# exports (docs/t3code-backend.md "Active limits").
-if [ -n "$SPAWN_TRACEPARENT" ] && [ "$BACKEND" != t3code ]; then
+# entirely when trace context is off.
+if [ -n "$SPAWN_TRACEPARENT" ]; then
   if spawn_send_text_line "$T" "export TRACEPARENT=$SPAWN_TRACEPARENT"; then
     if ! spawn_record_traceparent; then
       LAUNCH="unset TRACEPARENT; $LAUNCH"
@@ -4241,6 +4305,7 @@ if [ -n "$SPAWN_TRACEPARENT" ] && [ "$BACKEND" != t3code ]; then
     fi
     LAUNCH="unset TRACEPARENT; $LAUNCH"
   fi
+fi
 fi
 if [ "$LAUNCH_ENV_ENABLED" = 1 ]; then
   LAUNCH_ENV_PREFIX='/usr/bin/env -i'

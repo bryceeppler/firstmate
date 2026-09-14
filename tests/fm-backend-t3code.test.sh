@@ -199,6 +199,29 @@ process.stdout.write(lines.filter((r) => r.path === "/api/orchestration/dispatch
 ' "$LOG"
 }
 
+t3_json_field() {  # <file> <js expression over the parsed document d>
+  node -e '
+const d = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+const v = eval(process.argv[2]);
+process.stdout.write(v === undefined ? "undefined" : typeof v === "string" ? v : JSON.stringify(v));
+' "$1" "$2"
+}
+
+# The Codex harness reads .codex/config.toml with a TOML parser; this reads the
+# one shape firstmate writes ([shell_environment_policy] with an inline `set`
+# table of basic strings) and prints the requested key, or `undefined`.
+t3_toml_env() {  # <file> <NAME>
+  node -e '
+const text = require("fs").readFileSync(process.argv[1], "utf8");
+if (!/^\[shell_environment_policy\]\n/.test(text)) { console.error("missing [shell_environment_policy] header"); process.exit(1); }
+const m = text.match(/^set = \{ (.*) \}\n$/m);
+if (!m) { console.error("missing inline set table"); process.exit(1); }
+const env = {};
+for (const pair of m[1].matchAll(/([A-Za-z0-9_-]+) = ("(?:[^"\\]|\\.)*")/g)) env[pair[1]] = JSON.parse(pair[2]);
+process.stdout.write(process.argv[2] in env ? env[process.argv[2]] : "undefined");
+' "$1" "$2"
+}
+
 test_missing_token_names_mint_command() {
   local out status
   t3_case missing-token
@@ -270,7 +293,7 @@ test_project_ensure_matches_realpath_or_creates() {
   [ "$(t3_dispatch_types)" = project.create ] || fail "an unmatched project must dispatch project.create"
   [ "$(t3_request 3 'r.body.projectId')" = "$id" ] || fail "project.create must carry the printed project id"
   [ "$(t3_request 3 'r.body.workspaceRoot')" = "$CASE_DIR/other" ] || fail "project.create must carry the realpath workspaceRoot"
-  [ "$(t3_request 3 'r.body.title')" = other ] || fail "project.create title should be the directory name"
+  [ "$(t3_request 3 'r.body.title')" = fm-other ] || fail "project.create title should be the fm- prefixed directory name, got '$(t3_request 3 'r.body.title')'"
   [ -n "$(t3_request 3 'r.body.commandId')" ] && [ -n "$(t3_request 3 'r.body.createdAt')" ] || fail "project.create must carry commandId and createdAt"
   pass "fm_backend_t3code_project_ensure: matches by realpath, otherwise creates with the verified payload"
 }
@@ -325,7 +348,41 @@ test_thread_create_and_turn_start_payloads() {
   [ "$(t3_request 2 'r.body.modelSelection')" = "$selection" ] || fail "turn_start must forward the model selection when given"
   t3_run 'fm_backend_t3code_turn_start "$1" steer' "$id" || fail "turn_start without selection failed"
   [ "$(t3_request 3 'r.body.modelSelection')" = undefined ] || fail "a steer without a selection must omit modelSelection"
+  t3_run 'fm_backend_t3code_thread_create proj-1 fm-home "" "" "$1"' "$selection" >/dev/null || fail "thread_create without a worktree failed"
+  [ "$(t3_request 4 'r.body.worktreePath')" = null ] || fail "an empty worktree must send worktreePath null (an empty string is an HTTP 400), got '$(t3_request 4 'r.body.worktreePath')'"
+  [ "$(t3_request 4 'r.body.branch')" = null ] || fail "an empty branch must send branch null"
   pass "fm_backend_t3code_thread_create/turn_start: verified command payloads"
+}
+
+test_thread_for_home_zero_one_and_ambiguous() {
+  local out status home
+  t3_case thread-for-home
+  home="$CASE_DIR/link-parent/home-link"
+  mkdir -p "$CASE_DIR/link-parent"
+  ln -s "$REPO" "$home"
+  shell_thread() {  # <id> <projectId> <status|none> <archivedAt-json> <worktreePath-json>
+    local session
+    if [ "$3" = none ]; then session=null; else session="{\"threadId\":\"$1\",\"status\":\"$3\",\"activeTurnId\":null,\"lastError\":null}"; fi
+    printf '{"id":"%s","projectId":"%s","archivedAt":%s,"worktreePath":%s,"session":%s}' "$1" "$2" "$4" "$5" "$session"
+  }
+  FM_T3_THREADS="[$(shell_thread t-worker proj-1 running null "\"$REPO/wt\""),$(shell_thread t-archived proj-1 running '"2026-09-14T00:00:00.000Z"' null),$(shell_thread t-ready proj-1 ready null null),$(shell_thread t-other proj-2 running null null)]" \
+    t3_world_set 'w.shell.projects.push({ id: "proj-2", title: "fm-elsewhere", workspaceRoot: "/nowhere", deletedAt: null }); w.shell.threads = JSON.parse(process.env.FM_T3_THREADS)'
+  out=$(t3_run 'fm_backend_t3code_thread_for_home "$1"' "$home" 2>&1)
+  status=$?
+  [ "$status" -eq 1 ] && [ -z "$out" ] || fail "no live thread on the home must print nothing and return 1 (worktree threads, archived, ready, and other projects excluded), got status $status '$out'"
+  FM_T3_THREAD="$(shell_thread t-captain proj-1 running null null)" t3_world_set 'w.shell.threads.push(JSON.parse(process.env.FM_T3_THREAD))'
+  out=$(t3_run 'fm_backend_t3code_thread_for_home "$1"' "$home" 2>&1) || fail "one live thread must resolve: $out"
+  [ "$out" = t-captain ] || fail "the one live worktree-less thread on the home should resolve through the symlinked path, got '$out'"
+  FM_T3_THREAD="$(shell_thread t-second proj-1 starting null null)" t3_world_set 'w.shell.threads.push(JSON.parse(process.env.FM_T3_THREAD))'
+  out=$(t3_run 'fm_backend_t3code_thread_for_home "$1"' "$home" 2>&1)
+  status=$?
+  [ "$status" -eq 2 ] || fail "two live threads must return 2, got $status"
+  assert_contains "$out" "t-captain, t-second" "the ambiguity error must name the thread ids"
+  assert_contains "$out" "FM_SUPERVISOR_TARGET" "the ambiguity error must tell the operator how to pin the target"
+  out=$(FM_T3CODE_ORIGIN=http://127.0.0.1:9 FM_CONFIG_OVERRIDE="$CONFIG" bash -c '. "$0/bin/fm-backend.sh"; fm_backend_source t3code; fm_backend_t3code_thread_for_home "$1"' "$ROOT" "$home" 2>&1)
+  status=$?
+  [ "$status" -eq 1 ] && [ -z "$out" ] || fail "an unreachable server must be silent and return 1, got status $status '$out'"
+  pass "fm_backend_t3code_thread_for_home: zero, one, ambiguous, and unreachable"
 }
 
 test_capture_renders_messages_and_status() {
@@ -503,10 +560,52 @@ test_spawn_leases_slot_creates_thread_and_starts_launch_turn() {
   assert_contains "$(t3_request "$turn" 'r.body.message.text')" "FIRSTMATE_OP: v1 launch-brief:" "turn.start must carry the encoded launch brief"
   assert_contains "$(t3_request "$turn" 'r.body.message.text')" "Verify the T3 lifecycle behavior under test." "turn.start must carry the brief body"
   assert_present "$wt/.claude/settings.local.json" "spawn must still arm the Claude busy hooks in the worktree before the launch turn"
+  local settings="$wt/.claude/settings.local.json"
+  [ "$(t3_json_field "$settings" 'Object.keys(d.hooks).sort().join(" ")')" = "SessionEnd Stop StopFailure UserPromptSubmit" ] \
+    || fail "the env merge must keep the busy hooks, got hooks '$(t3_json_field "$settings" 'Object.keys(d.hooks || {})')'"
+  [ "$(t3_json_field "$settings" 'd.env.GOTMPDIR')" = "/tmp/fm-$id/gotmp" ] || fail "settings env must carry GOTMPDIR, got '$(t3_json_field "$settings" 'd.env')'"
+  [ "$(t3_json_field "$settings" 'd.env.FM_TASK_ID')" = "$id" ] || fail "a ship worker's settings env must carry FM_TASK_ID"
+  [ "$(t3_json_field "$settings" 'd.env.TRACEPARENT')" = undefined ] || fail "TRACEPARENT must be absent when trace context is off"
+  [ "$(t3_json_field "$settings" 'Object.keys(d.env).sort().join(" ")')" = "FM_TASK_ID GOTMPDIR" ] || fail "a worker env block carries exactly GOTMPDIR and FM_TASK_ID"
+  grep -qxF '.claude/settings.local.json' "$(git -C "$wt" rev-parse --git-path info/exclude)" || fail "the settings file must be git-excluded"
   [ "$(t3_log_line_of 'r.body && r.body.type === "thread.turn.start"')" -gt "$(t3_log_line_of 'r.tool === "treehouse"')" ] \
     || fail "the launch turn must follow the lease"
   rm -rf "/tmp/fm-$id"
   pass "fm-spawn.sh --backend t3code: leases the slot, creates the thread on it, records metadata, starts the launch turn"
+}
+
+test_spawn_codex_scout_writes_toml_env_with_traceparent() {
+  local proj wt data state id out fb toml tp
+  id="t3codexz1"
+  t3_case spawn-codex ready
+  proj="$CASE_DIR/spawn-project"; wt="$CASE_DIR/spawn-wt"; data="$CASE_DIR/data"; state="$CASE_DIR/state"
+  fm_git_worktree "$proj" "$wt" "fm/$id"
+  mkdir -p "$data/$id" "$state" "$CASE_DIR/home/state"
+  write_spawn_brief "$data" "$id"
+  touch "$state/.last-watcher-beat"
+  # A worker's trace context is this home's frozen session decision
+  # (bin/fm-trace-context-lib.sh): the session lock pid plus an `on` record.
+  printf '%s\n' "$$" > "$state/.lock"
+  printf '%s on\n' "$$" > "$state/.trace-context-effective"
+  FM_T3_PROJ="$proj" t3_world_set 'w.shell.projects[0].workspaceRoot = process.env.FM_T3_PROJ'
+  fb=$(make_treehouse_fakebin "$CASE_DIR")
+  out=$( HOME="$SPAWN_HOME" PATH="$fb:$PATH" FM_T3_TREEHOUSE_LOG="$LOG" FM_T3_TREEHOUSE_WT="$wt" \
+    FM_T3CODE_ORIGIN="$ORIGIN" FM_ROOT_OVERRIDE="$ROOT" FM_HOME="$CASE_DIR/home" FM_STATE_OVERRIDE="$state" FM_DATA_OVERRIDE="$data" FM_CONFIG_OVERRIDE="$CONFIG" \
+    FM_PROJECTS_OVERRIDE="$CASE_DIR/unused-projects" FM_SPAWN_NO_GUARD=1 \
+    "$ROOT/bin/fm-spawn.sh" "$id" "$proj" codex --scout --model gpt-5.6-sol --backend t3code 2>&1 )
+  expect_code 0 $? "a codex scout on t3code should spawn against the fake T3 server"$'\n'"$out"
+  toml="$wt/.codex/config.toml"
+  assert_present "$toml" "a codex worker gets .codex/config.toml in its worktree"
+  [ "$(t3_toml_env "$toml" GOTMPDIR)" = "/tmp/fm-$id/gotmp" ] || fail "config.toml must set GOTMPDIR, got '$(cat "$toml")'"
+  [ "$(t3_toml_env "$toml" FM_TASK_ID)" = "$id" ] || fail "a scout's config.toml must set FM_TASK_ID"
+  tp=$(t3_toml_env "$toml" TRACEPARENT)
+  case "$tp" in 00-????????????????????????????????-????????????????-??) ;; *) fail "config.toml must set a W3C TRACEPARENT when trace context is on, got '$(cat "$toml")'" ;; esac
+  grep -qxF "traceparent=$tp" "$state/$id.meta" || fail "the delivered TRACEPARENT must be the one recorded in the meta, got '$(grep '^traceparent=' "$state/$id.meta")'"
+  assert_absent "$wt/.claude/settings.local.json" "a codex worker writes no Claude settings"
+  grep -qxF '.codex/config.toml' "$(git -C "$wt" rev-parse --git-path info/exclude)" || fail "config.toml must be git-excluded"
+  [ "$(t3_dispatch_types)" = "thread.create thread.turn.start" ] || fail "spawn must dispatch thread.create then thread.turn.start, got '$(t3_dispatch_types)'"
+  rm -rf "/tmp/fm-$id"
+  pass "fm-spawn.sh --backend t3code codex: writes .codex/config.toml with GOTMPDIR, FM_TASK_ID, and TRACEPARENT"
 }
 
 test_spawn_refuses_t3code_secondmate_before_home_mutation() {
@@ -566,9 +665,11 @@ test_scout_teardown_stops_and_archives_before_slot_return() {
   touch "$state/.last-watcher-beat"
   fm_write_meta "$state/$id.meta" \
     "window=fm-$id" "endpoint_task_id=$id" "worktree=$wt" "project=$proj" \
-    "harness=claude" "kind=scout" "mode=no-mistakes" "yolo=off" \
+    "harness=codex" "kind=scout" "mode=no-mistakes" "yolo=off" \
     "backend=t3code" "t3_thread_id=$thread" "t3_project_id=proj-1" \
     "decisions_reviewed=1" "decision_keys="
+  mkdir -p "$wt/.codex"
+  printf '[shell_environment_policy]\nset = { FM_TASK_ID = "%s" }\n' "$id" > "$wt/.codex/config.toml"
   fb=$(make_treehouse_fakebin "$CASE_DIR")
   neutral=$(neutral_fm_root "$CASE_DIR/neutral")
   out=$( PATH="$fb:$PATH" FM_T3_TREEHOUSE_LOG="$LOG" FM_T3_TREEHOUSE_WT="$wt" FM_T3CODE_ORIGIN="$ORIGIN" \
@@ -576,6 +677,7 @@ test_scout_teardown_stops_and_archives_before_slot_return() {
     "$ROOT/bin/fm-teardown.sh" "$id" 2>&1 )
   rc=$?
   expect_code 0 "$rc" "t3code scout teardown should succeed once the report exists"$'\n'"$out"
+  assert_absent "$wt/.codex/config.toml" "teardown must remove the codex env config before the slot is reused"
   [ "$(t3_dispatch_types)" = "thread.session.stop thread.archive" ] || fail "teardown must stop then archive exactly once, got '$(t3_dispatch_types)'"
   local archive_line return_line
   archive_line=$(t3_log_line_of 'r.body && r.body.type === "thread.archive"')
@@ -620,6 +722,7 @@ test_version_floor_refuses_old_server
 test_project_ensure_matches_realpath_or_creates
 test_model_selection_table
 test_thread_create_and_turn_start_payloads
+test_thread_for_home_zero_one_and_ambiguous
 test_capture_renders_messages_and_status
 test_send_key_mapping
 test_send_text_submit_verdicts
@@ -629,6 +732,7 @@ test_dispatcher_routes_and_validates_t3code_meta
 test_busy_classify_trusts_native_idle_and_busy
 test_control_lib_tables
 test_spawn_leases_slot_creates_thread_and_starts_launch_turn
+test_spawn_codex_scout_writes_toml_env_with_traceparent
 test_spawn_refuses_t3code_secondmate_before_home_mutation
 test_spawn_refuses_t3code_when_token_rejected
 test_scout_teardown_stops_and_archives_before_slot_return

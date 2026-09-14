@@ -9,6 +9,13 @@
 #
 # Target string shape: the T3 thread id (uuid).
 #
+# T3 sets environment variables per provider instance, never per thread, so
+# every fact firstmate would type into a pane before launch (GOTMPDIR,
+# FM_TASK_ID, TRACEPARENT, and a secondmate's FM_* launch prefix) travels
+# instead as per-directory harness config that bin/fm-spawn.sh writes into the
+# launch directory before the first turn: `.claude/settings.local.json` `env`
+# for Claude, `.codex/config.toml` `[shell_environment_policy] set` for Codex.
+#
 # Config (gitignored config/ of the active home):
 #   t3code-token      the bearer, one line, mode 0600
 #   t3code-instances  optional `harness=instanceId` lines (claude=claudeAgent,
@@ -161,7 +168,9 @@ process.stdout.write(hit ? hit.id : "");
     return 0
   fi
   id=$(fm_backend_t3code_uuid) || return 1
-  title=$(basename "$real")
+  # The fm- prefix keeps firstmate's projects apart from the owner's own T3
+  # project names; matching stays by real path, so the title never binds.
+  title="fm-$(basename "$real")"
   cmd=$(fm_backend_t3code_command project.create "projectId=$id" "title=$title" "workspaceRoot=$real" createdAt=@now) || return 1
   fm_backend_t3code_dispatch "$cmd" >/dev/null || return 1
   printf '%s' "$id"
@@ -225,15 +234,49 @@ process.stdout.write(JSON.stringify(out));
 ' "$instance" "$model" "$option"
 }
 
+# An empty worktree sends worktreePath null, which puts the agent in the
+# project's workspaceRoot (a secondmate home); an empty string is an HTTP 400.
 fm_backend_t3code_thread_create() {  # <project-id> <title> <branch> <worktree> <model-selection-json> -> thread id
-  local project_id=$1 title=$2 branch=$3 worktree=$4 selection=$5 id cmd branch_field
+  local project_id=$1 title=$2 branch=$3 worktree=$4 selection=$5 id cmd branch_field worktree_field
   id=$(fm_backend_t3code_uuid) || return 1
   if [ -n "$branch" ]; then branch_field="branch=$branch"; else branch_field='branch:=null'; fi
+  if [ -n "$worktree" ]; then worktree_field="worktreePath=$worktree"; else worktree_field='worktreePath:=null'; fi
   cmd=$(fm_backend_t3code_command thread.create "threadId=$id" "projectId=$project_id" "title=$title" \
     "modelSelection:=$selection" runtimeMode=full-access interactionMode=default \
-    "$branch_field" "worktreePath=$worktree" createdAt=@now) || return 1
+    "$branch_field" "$worktree_field" createdAt=@now) || return 1
   fm_backend_t3code_dispatch "$cmd" >/dev/null || return 1
   printf '%s' "$id"
+}
+
+# fm_backend_t3code_thread_for_home <home>: the live T3 thread running the
+# firstmate whose home is <home>, for away-mode supervisor discovery. T3 puts
+# no thread id into the agent's environment, so the only self-discovery is a
+# cwd match: a project whose workspaceRoot is <home> by real path, and on it a
+# thread that is not archived, has no worktree of its own (worktreePath null),
+# and whose session is starting or running (the daemon is started from inside
+# the captain's own turn). Exactly one match prints its id (0); none prints
+# nothing (1); more than one is an error naming the ids (2); an unreadable
+# server is silent (1) so the caller falls through to its default.
+fm_backend_t3code_thread_for_home() {  # <home> -> thread id
+  local home=$1 real shell out rc
+  real=$(cd "$home" 2>/dev/null && pwd -P) || return 1
+  shell=$(fm_backend_t3code_api GET /api/orchestration/shell 2>/dev/null) || return 1
+  # shellcheck disable=SC2016  # Single quotes are deliberate: ${...} belongs to the Node snippet.
+  out=$(printf '%s' "$shell" | node -e '
+const fs = require("fs");
+const want = process.argv[1];
+const data = JSON.parse(fs.readFileSync(0, "utf8"));
+const real = (p) => { try { return fs.realpathSync(p); } catch { return p; } };
+const projects = new Set((data.projects || []).filter((p) => !p.deletedAt && real(p.workspaceRoot) === want).map((p) => p.id));
+const live = (data.threads || []).filter((t) => projects.has(t.projectId) && !t.archivedAt && t.worktreePath === null
+  && t.session && (t.session.status === "starting" || t.session.status === "running")).map((t) => t.id);
+if (live.length === 1) { process.stdout.write(live[0]); process.exit(0); }
+if (live.length === 0) process.exit(1);
+console.error(`error: ${live.length} live T3 threads run in ${want} (${live.join(", ")}); set FM_SUPERVISOR_TARGET to the captain thread id`);
+process.exit(2);
+' "$real") && rc=0 || rc=$?
+  [ "$rc" -ne 0 ] || printf '%s' "$out"
+  return "$rc"
 }
 
 fm_backend_t3code_turn_start() {  # <thread-id> <text> [model-selection-json]
