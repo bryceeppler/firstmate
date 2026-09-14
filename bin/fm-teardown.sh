@@ -3012,6 +3012,7 @@ cleanup_firstmate_home_children() {
         rm -f "$child_wt/.claude/settings.local.json" "$child_wt/.opencode/plugins/fm-turn-end.js" \
           "$child_wt/.opencode/plugins/fm-busy-state.js" \
           "$child_wt/.fm-grok-turnend" "$child_wt/.fm-kimi-turnend"
+        [ "$child_backend" != t3code ] || rm -f "$child_wt/.codex/config.toml" "$child_wt/CLAUDE.local.md"
         if [ -n "$child_proj" ] && [ -d "$child_proj" ] && command -v treehouse >/dev/null 2>&1; then
           if teardown_treehouse_return "$child_wt" "$child_proj" "child worktree"; then
             fm_treehouse_slot_owner_release "$child_wt" "$child_id"
@@ -3328,6 +3329,7 @@ if [ "$BACKEND" = orca ] && [ "$KIND" != secondmate ]; then
     rm -f "$WT/.claude/settings.local.json" "$WT/.opencode/plugins/fm-turn-end.js" \
       "$WT/.opencode/plugins/fm-busy-state.js" "$WT/.codex/config.toml" \
       "$WT/.fm-grok-turnend" "$WT/.fm-kimi-turnend"
+    [ "$BACKEND" != t3code ] || rm -f "$WT/CLAUDE.local.md"
   fi
   [ -z "$T_ORCA" ] || fm_backend_kill "$BACKEND" "$T" "$(meta_value "$META" zellij_tab_id)" "fm-$ID" 2>/dev/null || true
   fm_backend_remove_worktree "$BACKEND" "$ORCA_WORKTREE_ID"
@@ -3341,9 +3343,11 @@ elif [ -d "$WT" ] && [ "$KIND" != secondmate ]; then
     fi
   fi
   # Remove our hook and environment files so a reused pool worktree cannot fire
-  # signals for a dead task or hand a t3code env block to its next holder.
+  # signals for a dead task or hand a t3code env block or channel statement to
+  # its next holder.
   rm -f "$WT/.claude/settings.local.json" "$WT/.opencode/plugins/fm-turn-end.js" \
     "$WT/.codex/config.toml" "$WT/.fm-grok-turnend" "$WT/.fm-kimi-turnend"
+  [ "$BACKEND" != t3code ] || rm -f "$WT/CLAUDE.local.md"
   # Kills remaining processes in the worktree (including the agent), resets, returns
   # to pool. treehouse resolves the pool from the working directory, so run it from
   # the project. teardown_treehouse_return tolerates transient and stale git locks

@@ -621,6 +621,32 @@ test_spawn_codex_refuses_tracked_codex_config() {
   pass "fm-spawn.sh --backend t3code codex: refuses to overwrite a project's tracked .codex/config.toml before any mutation"
 }
 
+test_spawn_claude_refuses_tracked_claude_local_md() {
+  local proj wt data state id out rc fb
+  id="t3claudetrk1"
+  t3_case spawn-claude-tracked ready
+  proj="$CASE_DIR/spawn-project"; wt="$CASE_DIR/spawn-wt"; data="$CASE_DIR/data"; state="$CASE_DIR/state"
+  fm_git_worktree "$proj" "$wt" "fm/$id"
+  mkdir -p "$data/$id" "$state" "$CASE_DIR/home/state"
+  printf 'project instructions\n' > "$proj/CLAUDE.local.md"
+  git -C "$proj" add CLAUDE.local.md
+  git -C "$proj" -c user.name=t -c user.email=t@example.invalid commit -qm "track local instructions"
+  write_spawn_brief "$data" "$id"
+  touch "$state/.last-watcher-beat"
+  FM_T3_PROJ="$proj" t3_world_set 'w.shell.projects[0].workspaceRoot = process.env.FM_T3_PROJ'
+  fb=$(make_treehouse_fakebin "$CASE_DIR")
+  out=$( HOME="$SPAWN_HOME" CLAUDE_CONFIG_DIR='' PATH="$fb:$PATH" FM_T3_TREEHOUSE_LOG="$LOG" FM_T3_TREEHOUSE_WT="$wt" \
+    FM_T3CODE_ORIGIN="$ORIGIN" FM_ROOT_OVERRIDE="$ROOT" FM_HOME="$CASE_DIR/home" FM_STATE_OVERRIDE="$state" FM_DATA_OVERRIDE="$data" FM_CONFIG_OVERRIDE="$CONFIG" \
+    FM_PROJECTS_OVERRIDE="$CASE_DIR/unused-projects" FM_SPAWN_NO_GUARD=1 \
+    "$ROOT/bin/fm-spawn.sh" "$id" "$proj" claude --scout --model claude-sonnet-5 --backend t3code 2>&1 ); rc=$?
+  expect_code 1 "$rc" "a claude t3code spawn must refuse a project that tracks CLAUDE.local.md"$'\n'"$out"
+  assert_contains "$out" "tracks CLAUDE.local.md" "the refusal must name the tracked file"
+  [ -z "$(t3_dispatch_types)" ] || fail "the refusal must come before any T3 mutation, got '$(t3_dispatch_types)'"
+  [ "$(t3_log_line_of 'r.tool === "treehouse"')" -eq 0 ] || fail "the refusal must come before the slot is leased"
+  assert_absent "$state/$id.meta" "a refused spawn records nothing"
+  pass "fm-spawn.sh --backend t3code claude: refuses to overwrite a project's tracked CLAUDE.local.md before any mutation"
+}
+
 test_spawn_leases_slot_creates_thread_and_starts_launch_turn() {
   local proj wt data state id out fb thread
   id="t3spawnz1"
@@ -672,6 +698,10 @@ test_spawn_leases_slot_creates_thread_and_starts_launch_turn() {
   [ "$(t3_json_field "$settings" 'd.env.TRACEPARENT')" = undefined ] || fail "TRACEPARENT must be absent when trace context is off"
   [ "$(t3_json_field "$settings" 'Object.keys(d.env).sort().join(" ")')" = "FM_TASK_ID GOTMPDIR" ] || fail "a worker env block carries exactly GOTMPDIR and FM_TASK_ID"
   t3_excluded "$wt" .claude/settings.local.json || fail "the settings file must be git-excluded"
+  assert_present "$wt/CLAUDE.local.md" "a claude worker gets the task-worker channel statement as CLAUDE.local.md"
+  assert_grep "task worker launched by Firstmate" "$wt/CLAUDE.local.md" "CLAUDE.local.md must carry the channel statement"
+  assert_grep "first-party task instructions" "$wt/CLAUDE.local.md" "CLAUDE.local.md must name the brief and inbox as first-party"
+  t3_excluded "$wt" CLAUDE.local.md || fail "CLAUDE.local.md must be git-excluded"
   [ "$(t3_log_line_of 'r.body && r.body.type === "thread.turn.start"')" -gt "$(t3_log_line_of 'r.tool === "treehouse"')" ] \
     || fail "the launch turn must follow the lease"
   rm -rf "/tmp/fm-$id"
@@ -706,6 +736,7 @@ test_spawn_codex_scout_writes_toml_env_with_traceparent() {
   case "$tp" in 00-????????????????????????????????-????????????????-??) ;; *) fail "config.toml must set a W3C TRACEPARENT when trace context is on, got '$(cat "$toml")'" ;; esac
   grep -qxF "traceparent=$tp" "$state/$id.meta" || fail "the delivered TRACEPARENT must be the one recorded in the meta, got '$(grep '^traceparent=' "$state/$id.meta")'"
   assert_absent "$wt/.claude/settings.local.json" "a codex worker writes no Claude settings"
+  assert_absent "$wt/CLAUDE.local.md" "a codex worker gets no Claude channel statement"
   t3_excluded "$wt" .codex/config.toml || fail "config.toml must be git-excluded"
   [ "$(t3_dispatch_types)" = "thread.create thread.turn.start" ] || fail "spawn must dispatch thread.create then thread.turn.start, got '$(t3_dispatch_types)'"
   rm -rf "/tmp/fm-$id"
@@ -789,6 +820,7 @@ test_spawn_secondmate_runs_thread_in_home_with_env() {
   assert_grep "backend=t3code" "$CASE_DIR/home/state/$id.meta" "meta missing backend=t3code"
   assert_grep "kind=secondmate" "$CASE_DIR/home/state/$id.meta" "meta missing kind=secondmate"
   assert_grep "home=$home" "$CASE_DIR/home/state/$id.meta" "meta missing home="
+  assert_absent "$home/CLAUDE.local.md" "a secondmate runs under its own supervisor contract and gets no task-worker statement"
   assert_grep "t3_thread_id=$thread" "$CASE_DIR/home/state/$id.meta" "meta missing the created thread id"
   assert_grep "t3_project_id=$project" "$CASE_DIR/home/state/$id.meta" "meta missing the created project id"
   settings="$home/.claude/settings.local.json"
@@ -866,6 +898,7 @@ test_scout_teardown_stops_and_archives_before_slot_return() {
     "decisions_reviewed=1" "decision_keys="
   mkdir -p "$wt/.codex"
   printf '[shell_environment_policy]\nset = { FM_TASK_ID = "%s" }\n' "$id" > "$wt/.codex/config.toml"
+  printf 'statement\n' > "$wt/CLAUDE.local.md"
   fb=$(make_treehouse_fakebin "$CASE_DIR")
   neutral=$(neutral_fm_root "$CASE_DIR/neutral")
   out=$( PATH="$fb:$PATH" FM_T3_TREEHOUSE_LOG="$LOG" FM_T3_TREEHOUSE_WT="$wt" FM_T3CODE_ORIGIN="$ORIGIN" \
@@ -874,6 +907,7 @@ test_scout_teardown_stops_and_archives_before_slot_return() {
   rc=$?
   expect_code 0 "$rc" "t3code scout teardown should succeed once the report exists"$'\n'"$out"
   assert_absent "$wt/.codex/config.toml" "teardown must remove the codex env config before the slot is reused"
+  assert_absent "$wt/CLAUDE.local.md" "teardown must remove the channel statement before the slot is reused"
   [ "$(t3_dispatch_types)" = "thread.session.stop thread.archive" ] || fail "teardown must stop then archive exactly once, got '$(t3_dispatch_types)'"
   local archive_line return_line
   archive_line=$(t3_log_line_of 'r.body && r.body.type === "thread.archive"')
@@ -960,6 +994,7 @@ test_control_exit_stops_session_natively
 test_control_relaunch_refused_before_any_dispatch
 test_spawn_leases_slot_creates_thread_and_starts_launch_turn
 test_spawn_codex_refuses_tracked_codex_config
+test_spawn_claude_refuses_tracked_claude_local_md
 test_spawn_codex_scout_writes_toml_env_with_traceparent
 test_spawn_secondmate_runs_thread_in_home_with_env
 test_spawn_codex_secondmate_writes_toml_env

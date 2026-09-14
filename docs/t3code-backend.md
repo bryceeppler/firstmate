@@ -66,6 +66,9 @@ For `claude` that is an `env` block in the directory's `.claude/settings.local.j
 Both files are git-excluded and removed at teardown.
 Every kind receives `GOTMPDIR`; ship and scout workers also receive `FM_TASK_ID`; `TRACEPARENT` rides only when trace context is on, and only once its `traceparent=` line is recorded.
 A secondmate additionally receives the launch prefix every other backend types (`FM_ROOT_OVERRIDE`, `FM_STATE_OVERRIDE`, `FM_DATA_OVERRIDE`, `FM_PROJECTS_OVERRIDE`, and `FM_CONFIG_OVERRIDE` empty, `FM_PUBLIC_FOLLOWUP_PRIMARY_HOME`, `FM_HOME`, `FM_TRACE_CONTEXT`, `FM_SUPERVISION_MODEL`) plus `FM_SUPERVISOR_BACKEND=t3code` and its own thread id as `FM_SUPERVISOR_TARGET`, so its away daemon resolves its target exactly.
+A `claude` ship or scout worker also receives the task-worker channel statement that a pane launch appends to the system prompt, written as a `CLAUDE.local.md` in its worktree because T3 owns the system prompt; a secondmate does not, as on every backend.
+Without it a Claude worker can refuse the launch brief as prompt injection, which happened live.
+A `claude` task refuses a project that tracks `CLAUDE.local.md`, and a `codex` task one that tracks `.codex/config.toml`, because those files are the backend's channels and teardown removes them.
 
 ## Current lifecycle and safety
 
@@ -84,7 +87,8 @@ The control plane ([`agent-control.md`](agent-control.md)) reads the same status
 
 The watcher and `fm-crew-state.sh` read the server's own session status through one table in the adapter, and both native verdicts are trusted ahead of every harness gate and hook record (source `t3code-native`), so a codex crew settles from T3's status even though codex has no verified hook writer; only an unreadable server falls through to the ordinary contract.
 T3 launches Claude with the `user,project,local` setting sources, so the worktree `.claude/settings.local.json` busy hooks fire as on every other backend.
-Codex runs each of its commands through `/bin/zsh -lc`, so the Firstmate toolchain must be on the login shell's `PATH`, not only on the T3 server's.
+T3 starts every agent with the T3 server's own environment, not a login shell's.
+Codex runs each command through `/bin/zsh -lc` in that environment, so the Firstmate toolchain must survive the login shell's startup files, and a startup file that rebuilds `PATH` when a marker variable is missing hides it from every Codex worker; Claude's shell tool restores its own login-shell snapshot and is unaffected.
 A remote secondmate is unaffected by this backend: it always runs on the remote host's Herdr, and `--backend t3code` on one is refused.
 
 Cleanup keeps all shared Firstmate safety checks.
@@ -113,8 +117,6 @@ The branch can be left with `git switch main`.
 
 - T3 Code is explicit-only and experimental, and runs only `claude` and `codex`.
 - `fm-control.sh relaunch` is refused: a T3 thread is bound to its driver, and a turn on a stopped thread continues the same agent rather than launching a replacement.
-- A `codex` task refuses a project that tracks `.codex/config.toml`, because that file is the backend's environment channel and teardown removes it.
-- The Claude task-worker channel-authority statement that a pane launch appends to the system prompt has no channel on T3; the brief and every steer arrive as the thread's own user turns.
 - Ctrl-U is unsupported.
 - A Codex captain on this backend has no away mode: Codex has no tracked background tool for `start-native`, and `start` has no terminal to create.
 - The version floor ignores a prerelease tag, so the verified `0.0.41` nightly passes.
