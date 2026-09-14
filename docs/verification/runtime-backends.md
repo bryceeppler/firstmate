@@ -1490,6 +1490,34 @@ FM_CMUX_CLAUDE_COMPOSER_LIVE=1 bin/fm-test-run.sh tests/fm-cmux-claude-composer-
 That guard still addresses the worker by task selector, so it no longer reaches the typed submit path and is not a current refresh entry point for this guarantee.
 The portable classifier regression is `tests/fm-backend-cmux.test.sh`.
 
+## T3 Code
+
+A live probe ran on 2026-09-14 against T3 Code 0.0.41-nightly.20260914.1707 over its HTTP orchestration API.
+Local paths and thread ids are intentionally not retained here.
+
+The probe sequence was:
+
+1. read the unauthenticated `GET /.well-known/t3/environment` descriptor, which returned `serverVersion` and `capabilities`;
+2. mint a bearer with `npx t3@<serverVersion> auth session issue --json --ttl <duration> --label firstmate` and confirm a bad token answers 401 on the orchestration routes;
+3. create a project and a thread whose `worktreePath` and `branch` name an external worktree, and confirm the agent's `pwd` was that worktree and `git branch --show-current` that branch;
+4. start a turn, then send a second `thread.turn.start` while it ran, which Claude treated as a steer into the live turn (a counting task stopped and answered the steer);
+5. interrupt with `thread.turn.interrupt`, after which `activeTurnId` cleared within about 1.5 seconds;
+6. stop with `thread.session.stop`, after which the session read `stopped`;
+7. delete with `thread.delete`, after which the thread read returned 404.
+
+Observed session statuses were `null` after create, `starting` then `running` on turn start, `ready` with a null `activeTurnId` when the turn ended, and `stopped` after the stop.
+T3 launched Claude with the `user,project,local` setting sources and the bypass-permissions mode, and a user-scope SessionStart hook fired inside the thread, so worktree-resident Firstmate hooks fire.
+A model slug outside the catalog was rejected with "unknown provider for model" and the session went to `error`.
+Neither `thread.archive` nor `thread.delete` touched the worktree.
+A Codex mid-turn steer was not exercised and stays unverified.
+
+```sh
+tests/fm-backend-t3code.test.sh
+tests/fm-backend.test.sh
+```
+
+The fake-server suite covers the token and version gates, project matching, the create and turn-start payloads, the effort option ids, capture rendering, key mapping, the status table, the stop-then-archive kill, spawn, and teardown ordering.
+
 ## Codex App host tools
 
 A reusable Desktop host-tool smoke ran on 2026-07-06 against Codex Desktop bundle version 26.623.101652, build 4674, bundle id `com.openai.codex`.
