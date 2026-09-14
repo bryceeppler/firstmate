@@ -528,6 +528,8 @@ test_backend_validate_spawn_accepts_orca() {
   fm_backend_validate_spawn zellij 2>/dev/null || fail "fm_backend_validate_spawn should accept zellij"
   fm_backend_validate_spawn orca 2>/dev/null || fail "fm_backend_validate_spawn should accept orca"
   fm_backend_validate_spawn cmux 2>/dev/null || fail "fm_backend_validate_spawn should accept cmux"
+  fm_backend_validate_spawn t3code 2>/dev/null || fail "fm_backend_validate_spawn should accept t3code"
+  [ "$(fm_backend_required_tools t3code)" = 'node treehouse' ] || fail "t3code should require node and treehouse"
   out=$(fm_backend_validate_spawn bogus 2>&1) && fail "fm_backend_validate_spawn should still refuse unknown backends"
   assert_contains "$out" "unknown backend 'bogus'" "fm_backend_validate_spawn did not preserve unknown-backend validation"
   out=$(fm_backend_validate_spawn codex-app 2>&1) && fail "fm_backend_validate_spawn should refuse codex-app"
@@ -617,6 +619,7 @@ test_backend_of_selector_matches_explicit_target_meta() {
   fm_write_meta "$state/tmux-task.meta" "window=firstmate:fm-tmux-task"
   fm_write_meta "$state/custom-window-task.meta" "window=custom-window"
   fm_write_meta "$state/orca-task.meta" "window=fm-orca-task" "terminal=term-orca-task" "backend=orca"
+  fm_write_meta "$state/t3-task.meta" "window=fm-t3-task" "t3_thread_id=6f1c2b3a-0000-4000-8000-00000000c0de" "backend=t3code"
 
   [ "$(fm_backend_of_selector 'dotfiles-d6' 'default:wA:p2' "$state")" = herdr ] \
     || fail "bare non-fm task id selector should use its recorded backend"
@@ -632,6 +635,10 @@ test_backend_of_selector_matches_explicit_target_meta() {
     || fail "raw window selector matching metadata should not require tmux fallback"
   [ "$(fm_backend_of_selector 'term-orca-task' 'term-orca-task' "$state")" = orca ] \
     || fail "matching an explicit Orca terminal handle should inherit metadata backend"
+  [ "$(fm_backend_resolve_selector 'fm-t3-task' "$state")" = 6f1c2b3a-0000-4000-8000-00000000c0de ] \
+    || fail "t3code fm-<id> selector should resolve to t3_thread_id=, not window="
+  [ "$(fm_backend_of_selector '6f1c2b3a-0000-4000-8000-00000000c0de' '6f1c2b3a-0000-4000-8000-00000000c0de' "$state")" = t3code ] \
+    || fail "matching an explicit T3 thread id should inherit metadata backend"
   [ "$(fm_backend_of_selector 'default:w1:p2' 'default:w1:p2' "$state")" = herdr ] \
     || fail "explicit backend target matching metadata should use that task's backend"
   [ "$(fm_backend_of_selector 'firstmate:fm-tmux-task' 'firstmate:fm-tmux-task' "$state")" = tmux ] \

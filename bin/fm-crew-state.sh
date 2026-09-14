@@ -247,7 +247,9 @@ pane_readable() {  # <target>
 # isolated rendered-tail fallback; a herdr crew's native `busy` is accepted
 # when no record exists, but its native `idle` is NOT, because agent.get
 # reports generation state (idle while a crew blocks on its own long-running
-# foreground tool call) rather than turn state.
+# foreground tool call) rather than turn state. A t3code crew's native busy
+# AND idle are both accepted: the T3 server reports its own session status
+# and there is no shell in front of the agent to misread.
 crew_busy_verdict() {  # <target>
   local tail40=''
   case "$HARNESS" in
@@ -803,22 +805,23 @@ if ! pane_readable "$BACKEND_TARGET"; then
   #             normal flow below instead of being discarded.
   #   anything else - the cheap probes themselves failed to answer or
   #             contradicted themselves, which is unknown, never death.
-  # Backends with no classifier (orca, zellij, and cmux all report unverified)
-  # keep their historical capture-failure-means-gone reading.
+  # t3code answers from the server's own session status through the same
+  # contract. Backends with no classifier (orca, zellij, and cmux all report
+  # unverified) keep their historical capture-failure-means-gone reading.
   case "$TASK_BACKEND" in
-    tmux|herdr) AGENT_STATE=$(fm_backend_agent_state "$TASK_BACKEND" "$BACKEND_TARGET") ;;
+    tmux|herdr|t3code) AGENT_STATE=$(fm_backend_agent_state "$TASK_BACKEND" "$BACKEND_TARGET") ;;
     *) AGENT_STATE=none ;;
   esac
   case "$TASK_BACKEND:$AGENT_STATE" in
-    tmux:alive|herdr:alive)
+    tmux:alive|herdr:alive|t3code:alive)
       ;;
-    tmux:missing|herdr:missing)
+    tmux:missing|herdr:missing|t3code:missing)
       emit unknown none "backend target gone: $BACKEND_TARGET"
       ;;
-    tmux:dead|herdr:dead)
+    tmux:dead|herdr:dead|t3code:dead)
       emit unknown none "backend target gone: $BACKEND_TARGET (agent gone, pane shell remains)"
       ;;
-    tmux:*|herdr:*)
+    tmux:*|herdr:*|t3code:*)
       emit unknown none "backend unreachable ($TASK_BACKEND endpoint state: $AGENT_STATE)"
       ;;
     *)

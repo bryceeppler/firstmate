@@ -42,7 +42,7 @@
 #   fm-interrupt     the legacy Claude fm-send --key Escape idle event
 #   fm-recovery      a documented recovery reset after relaunch
 # Classifier-only sources (never written into a record):
-#   endpoint-gone, herdr-native, grok-regex, rovo-regex, agy-regex, muse-session-log,
+#   endpoint-gone, herdr-native, t3code-native, grok-regex, rovo-regex, agy-regex, muse-session-log,
 #   cursor-transcript, missing, malformed, gen-mismatch, source-mismatch,
 #   kimi-unverified, codex-unverified, capture-failed, no-target
 #
@@ -52,7 +52,9 @@
 #   2. standalone Kimi before verification       -> unknown kimi-unverified
 #   3. a valid, gen-matching, source-trusted record -> its state and source
 #   4. no record at all: herdr's native busy verdict is trusted as busy
-#      (generation state is sufficient for busy, not for idle), then the
+#      (generation state is sufficient for busy, not for idle), t3code's
+#      native busy AND idle are both trusted (the provider reports its own
+#      session status and no shell sits in front of the agent), then the
 #      muse session-log and cursor transcript pull sources, then the
 #      Grok/Rovo/AGY temporary regex fallbacks classify a grok, rovo, or agy
 #      task from its rendered tail, then unknown missing
@@ -936,6 +938,15 @@ fm_busy_classify() {  # <backend> <target> <harness> <id> <state-dir> [tail40]
       printf 'busy herdr-native'
       return 0
     fi
+  fi
+  if [ "$backend" = t3code ] && command -v fm_backend_busy_state >/dev/null 2>&1; then
+    native=$(fm_backend_busy_state "$backend" "$target" 2>/dev/null || true)
+    case "$native" in
+      busy|idle)
+        printf '%s t3code-native' "$native"
+        return 0
+        ;;
+    esac
   fi
   case "$harness" in
     muse*)
