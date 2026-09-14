@@ -1556,6 +1556,12 @@ A `codex` scout ran the same day through `bin/fm-spawn.sh <id> <project> --scout
 `fm-crew-state.sh` read `working` from the `t3code-native` source while the session was `running`, and `fm-teardown.sh --force` later stopped and archived the thread and returned the slot, after which the thread read `http-404`.
 A diagnostic `fm_backend_t3code_turn_start` sent while the session was `ready` came back within 30 seconds.
 Two items stay open from that run: the scout's own report of the completion gate as blocked was the Codex agent's reading of the captain-hold lifecycle gate, since the same steer showed `tasks-axi` installed at a compatible version, and the Codex mid-turn steer is still unverified because that steer went to an idle session.
+A secondmate ran the same day on the code that delivers the launch prefix as per-directory config: `bin/fm-home-seed.sh <id> - --no-projects` leased a fresh firstmate worktree as the home, and `bin/fm-spawn.sh <id> <home> --secondmate --harness claude --model claude-sonnet-5 --effort low --backend t3code` registered that home as a T3 project titled `fm-firstmate`, created a thread with `worktreePath: null`, and wrote the home's `.claude/settings.local.json` with an `env` block of exactly twelve entries: `GOTMPDIR`, the five empty `FM_*_OVERRIDE` values, `FM_PUBLIC_FOLLOWUP_PRIMARY_HOME`, `FM_HOME`, `FM_TRACE_CONTEXT`, `FM_SUPERVISION_MODEL`, `FM_SUPERVISOR_BACKEND`, and `FM_SUPERVISOR_TARGET`.
+The secondmate's first turn, asked by its charter to print those variables through its shell tool, returned every value as written and its `pwd` as the home.
+`bin/fm-teardown.sh <id> --force` stopped and archived the thread (it reads `http-404` afterwards), returned the home worktree, removed the task state, and dropped the registry row; the `fm-firstmate` project stayed in T3 as documented.
+
+Away-mode discovery ran the same day from inside a captain thread on the firstmate home: a turn asking the captain to run `discover_supervisor_backend` and `discover_supervisor_target` from `bin/fm-supervisor-target-lib.sh` returned `t3code` and the captain's own thread id, both with exit status 0, with no `FM_SUPERVISOR_*`, `TMUX_PANE`, or `HERDR_*` variable set.
+The daemon itself was not started through `start-native` in that thread, so injection into a T3 captain remains covered by the fake-backend daemon tests only.
 
 ## Codex App host tools
 
