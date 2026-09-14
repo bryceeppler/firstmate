@@ -1383,6 +1383,13 @@ if [ "$RELAUNCH" -eq 1 ]; then
     echo "error: backend '$BACKEND' has no recovery-grade agent-state classifier, so a relaunch cannot prove the previous agent exited; refusing rather than risking two agents in one endpoint" >&2
     exit 1
   }
+  # The same table refuses a backend that cannot host a REPLACEMENT at all:
+  # a T3 thread is bound to its driver, and a turn on its stopped session
+  # continues the same agent instead of launching a new one.
+  fm_control_backend_relaunch_supported "$BACKEND" || {
+    echo "error: backend '$BACKEND' cannot launch a replacement agent into an existing endpoint (a T3 thread is bound to its driver, and a turn on a stopped thread continues the same agent); refusing to relaunch $ID" >&2
+    exit 1
+  }
   RELAUNCH_STATE=$(fm_backend_agent_state "$BACKEND" "$RELAUNCH_TARGET")
   [ "$RELAUNCH_STATE" = dead ] || {
     echo "error: task $ID's endpoint reads '$RELAUNCH_STATE'; a relaunch requires a positively agent-free endpoint (stop the agent first with bin/fm-control.sh $ID exit)" >&2
@@ -3048,6 +3055,14 @@ EOF
     T="$ORCA_TERMINAL"
     ;;
   t3code)
+    # The codex environment channel is the launch directory's .codex/config.toml
+    # (spawn_t3code_env_install), which must be Firstmate's to write and remove;
+    # a project that tracks that file keeps it. Refused here, before the first
+    # T3 or Treehouse mutation.
+    if [ "$HARNESS" = codex ] && git -C "$PROJ_ABS" ls-files --error-unmatch .codex/config.toml >/dev/null 2>&1; then
+      echo "error: $PROJ_ABS tracks .codex/config.toml, which backend=t3code writes as the codex environment channel; refusing to overwrite project configuration" >&2
+      exit 1
+    fi
     # The T3 project is the directory the agent runs in: the project for a
     # worker, the home itself for a secondmate.
     T3CODE_PROJECT_ID=$(fm_backend_t3code_project_ensure "$PROJ_ABS") || exit 1

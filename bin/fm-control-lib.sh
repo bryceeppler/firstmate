@@ -218,6 +218,33 @@ fm_control_backend_state_verified() {  # <backend>
   return 1
 }
 
+# Whether <backend> stops an agent natively, through its own session API,
+# instead of through the harness exit command typed into the composer. T3 has
+# no composer: `thread.session.stop` is its exit, and the session reading
+# `stopped` afterwards is the same recovery-grade proof the typed path waits
+# for (bin/backends/t3code.sh's fm_backend_t3code_agent_stop).
+fm_control_backend_native_exit() {  # <backend>
+  case "${1-}" in
+    t3code) return 0 ;;
+  esac
+  return 1
+}
+
+# Whether <backend> can launch a REPLACEMENT agent into an existing task's
+# endpoint. A T3 thread is bound to the driver that first ran it (the server
+# answers "is bound to driver 'codex' and cannot switch to 'claudeAgent'"),
+# and a turn on a stopped thread restarts the same agent with its transcript
+# rather than a fresh one, so t3code has no replacement to launch and a
+# relaunch is refused before anything is stopped (docs/t3code-backend.md
+# "Active limits"). zellij, orca, and cmux never reach this table: they fail
+# fm_control_backend_state_verified first.
+fm_control_backend_relaunch_supported() {  # <backend>
+  case "${1-}" in
+    tmux|herdr) return 0 ;;
+  esac
+  return 1
+}
+
 # The per-task wiring artifacts a harness leaves behind, so a relaunch that
 # changes harness (or re-arms the same one with a fresh busy generation) can
 # clear the previous incarnation's wiring instead of leaving a stale hook

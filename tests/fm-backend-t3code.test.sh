@@ -525,7 +525,100 @@ test_busy_classify_trusts_native_idle_and_busy() {
 test_control_lib_tables() {
   bash -c '. "$0/bin/fm-control-lib.sh"; fm_control_backend_supports_key t3code Escape && fm_control_backend_supports_key t3code Enter && fm_control_backend_supports_key t3code C-c && ! fm_control_backend_supports_key t3code C-u && fm_control_backend_state_verified t3code' "$ROOT" \
     || fail "control-lib must accept Enter/Escape/C-c, refuse C-u, and treat t3code as state-verified"
-  pass "fm-control-lib: t3code key set and state-verified membership"
+  bash -c '. "$0/bin/fm-control-lib.sh"; fm_control_backend_native_exit t3code && ! fm_control_backend_native_exit tmux && ! fm_control_backend_native_exit herdr' "$ROOT" \
+    || fail "control-lib must name t3code, and only t3code, as a native-exit backend"
+  bash -c '. "$0/bin/fm-control-lib.sh"; fm_control_backend_relaunch_supported tmux && fm_control_backend_relaunch_supported herdr && ! fm_control_backend_relaunch_supported t3code' "$ROOT" \
+    || fail "control-lib must keep replacement launches on tmux and herdr and refuse them on t3code"
+  pass "fm-control-lib: t3code key set, state-verified, native-exit, and no-replacement membership"
+}
+
+# A recorded t3code scout for the control plane: the fake thread in the given
+# session status, the ordinary meta lines, and a brief so relaunch's own
+# checks are the ones that decide.
+make_t3_control_task() {  # <case-name> <id> <thread-id> <session-status>
+  t3_case "$1" "$4"
+  t3_world "$(t3_thread_json "$3" "$4" null)"
+  CTRL_PROJ="$CASE_DIR/project"; CTRL_WT="$CASE_DIR/wt"; CTRL_DATA="$CASE_DIR/data"; CTRL_STATE="$CASE_DIR/state"
+  fm_git_worktree "$CTRL_PROJ" "$CTRL_WT" "fm/$2"
+  mkdir -p "$CTRL_DATA/$2" "$CTRL_STATE" "$CASE_DIR/home/state"
+  write_spawn_brief "$CTRL_DATA" "$2"
+  touch "$CTRL_STATE/.last-watcher-beat"
+  fm_write_meta "$CTRL_STATE/$2.meta" \
+    "window=fm-$2" "endpoint_task_id=$2" "worktree=$CTRL_WT" "project=$CTRL_PROJ" \
+    "harness=claude" "kind=scout" "mode=no-mistakes" "yolo=off" \
+    "backend=t3code" "t3_thread_id=$3" "t3_project_id=proj-1" \
+    "decisions_reviewed=1" "decision_keys="
+}
+
+run_t3_control() {  # <id> <verb> [args...]
+  FM_T3CODE_ORIGIN="$ORIGIN" FM_HOME="$CASE_DIR/home" FM_STATE_OVERRIDE="$CTRL_STATE" FM_DATA_OVERRIDE="$CTRL_DATA" FM_CONFIG_OVERRIDE="$CONFIG" \
+    FM_CONTROL_POLL=0.05 FM_CONTROL_EXIT_WAIT=3 FM_CONTROL_LAUNCH_WAIT=1 \
+    "$ROOT/bin/fm-control.sh" "$@" 2>&1
+}
+
+test_control_exit_stops_session_natively() {
+  local id out rc thread=7a1b2c3d-4e5f-4a6b-8c7d-0123456789ab
+  id="t3exitz1"
+  make_t3_control_task control-exit "$id" "$thread" ready
+  out=$(run_t3_control "$id" exit); rc=$?
+  expect_code 0 "$rc" "exit on an idle t3code task should succeed"$'\n'"$out"
+  assert_contains "$out" "stopped $id harness=claude backend=t3code endpoint=$thread" "exit must report the stop with the thread as the endpoint"
+  [ "$(t3_dispatch_types)" = "thread.session.stop" ] || fail "exit must be exactly one thread.session.stop and never a typed turn, got '$(t3_dispatch_types)'"
+  assert_present "$CTRL_STATE/$id.meta" "exit preserves the task record"
+  [ "$(t3_run 'fm_backend_agent_state t3code "$1"' "$thread")" = dead ] || fail "the stopped session must classify dead"
+  out=$(run_t3_control "$id" exit); rc=$?
+  expect_code 0 "$rc" "a second exit should be idempotent"$'\n'"$out"
+  assert_contains "$out" "already-stopped $id" "a stopped session reports already-stopped"
+  [ "$(t3_dispatch_types)" = "thread.session.stop" ] || fail "an already stopped session must not be stopped again, got '$(t3_dispatch_types)'"
+  pass "fm-control.sh exit backend=t3code: one thread.session.stop, proven by the session reading stopped, idempotent"
+}
+
+test_control_relaunch_refused_before_any_dispatch() {
+  local id out rc thread=8b2c3d4e-5f6a-4b7c-9d8e-123456789abc fb
+  id="t3relaunchz1"
+  make_t3_control_task control-relaunch "$id" "$thread" running
+  out=$(run_t3_control "$id" relaunch --note "why"); rc=$?
+  expect_code 1 "$rc" "relaunch on a t3code task must refuse"$'\n'"$out"
+  assert_contains "$out" "bound to its driver" "the refusal must name the driver binding"
+  [ -z "$(t3_dispatch_types)" ] || fail "a refused relaunch must send nothing to T3, got '$(t3_dispatch_types)'"
+  assert_present "$CTRL_STATE/$id.meta" "a refused relaunch preserves the task record"
+  assert_absent "$CTRL_STATE/$id.control-relaunch" "a refused relaunch opens no transaction journal"
+  [ "$(t3_run 'fm_backend_agent_state t3code "$1"' "$thread")" = alive ] || fail "the running agent must be untouched"
+  fb=$(make_treehouse_fakebin "$CASE_DIR")
+  out=$( HOME="$SPAWN_HOME" PATH="$fb:$PATH" FM_T3_TREEHOUSE_LOG="$LOG" FM_T3_TREEHOUSE_WT="$CTRL_WT" \
+    FM_T3CODE_ORIGIN="$ORIGIN" FM_ROOT_OVERRIDE="$ROOT" FM_HOME="$CASE_DIR/home" FM_STATE_OVERRIDE="$CTRL_STATE" FM_DATA_OVERRIDE="$CTRL_DATA" FM_CONFIG_OVERRIDE="$CONFIG" \
+    FM_PROJECTS_OVERRIDE="$CASE_DIR/unused-projects" FM_SPAWN_NO_GUARD=1 \
+    "$ROOT/bin/fm-spawn.sh" "$id" --relaunch 2>&1 ); rc=$?
+  expect_code 1 "$rc" "fm-spawn --relaunch on a t3code task must refuse on its own"$'\n'"$out"
+  assert_contains "$out" "cannot launch a replacement agent" "the launch owner's refusal must name the missing replacement"
+  [ -z "$(t3_dispatch_types)" ] || fail "the launch owner's refusal must send nothing to T3, got '$(t3_dispatch_types)'"
+  pass "fm-control.sh relaunch backend=t3code: refused before anything is stopped, by the control plane and by the launch owner"
+}
+
+test_spawn_codex_refuses_tracked_codex_config() {
+  local proj wt data state id out rc fb
+  id="t3codextrk1"
+  t3_case spawn-codex-tracked ready
+  proj="$CASE_DIR/spawn-project"; wt="$CASE_DIR/spawn-wt"; data="$CASE_DIR/data"; state="$CASE_DIR/state"
+  fm_git_worktree "$proj" "$wt" "fm/$id"
+  mkdir -p "$proj/.codex" "$data/$id" "$state" "$CASE_DIR/home/state"
+  printf '[shell_environment_policy]\ninherit = "all"\n' > "$proj/.codex/config.toml"
+  git -C "$proj" add .codex/config.toml
+  git -C "$proj" -c user.name=t -c user.email=t@example.invalid commit -qm "track codex config"
+  write_spawn_brief "$data" "$id"
+  touch "$state/.last-watcher-beat"
+  FM_T3_PROJ="$proj" t3_world_set 'w.shell.projects[0].workspaceRoot = process.env.FM_T3_PROJ'
+  fb=$(make_treehouse_fakebin "$CASE_DIR")
+  out=$( HOME="$SPAWN_HOME" PATH="$fb:$PATH" FM_T3_TREEHOUSE_LOG="$LOG" FM_T3_TREEHOUSE_WT="$wt" \
+    FM_T3CODE_ORIGIN="$ORIGIN" FM_ROOT_OVERRIDE="$ROOT" FM_HOME="$CASE_DIR/home" FM_STATE_OVERRIDE="$state" FM_DATA_OVERRIDE="$data" FM_CONFIG_OVERRIDE="$CONFIG" \
+    FM_PROJECTS_OVERRIDE="$CASE_DIR/unused-projects" FM_SPAWN_NO_GUARD=1 \
+    "$ROOT/bin/fm-spawn.sh" "$id" "$proj" codex --scout --model gpt-5.6-sol --backend t3code 2>&1 ); rc=$?
+  expect_code 1 "$rc" "a codex t3code spawn must refuse a project that tracks .codex/config.toml"$'\n'"$out"
+  assert_contains "$out" "tracks .codex/config.toml" "the refusal must name the tracked file"
+  [ -z "$(t3_dispatch_types)" ] || fail "the refusal must come before any T3 mutation, got '$(t3_dispatch_types)'"
+  [ "$(t3_log_line_of 'r.tool === "treehouse"')" -eq 0 ] || fail "the refusal must come before the slot is leased"
+  assert_absent "$state/$id.meta" "a refused spawn records nothing"
+  pass "fm-spawn.sh --backend t3code codex: refuses to overwrite a project's tracked .codex/config.toml before any mutation"
 }
 
 test_spawn_leases_slot_creates_thread_and_starts_launch_turn() {
@@ -863,7 +956,10 @@ test_kill_stops_then_archives_and_tolerates_gone
 test_dispatcher_routes_and_validates_t3code_meta
 test_busy_classify_trusts_native_idle_and_busy
 test_control_lib_tables
+test_control_exit_stops_session_natively
+test_control_relaunch_refused_before_any_dispatch
 test_spawn_leases_slot_creates_thread_and_starts_launch_turn
+test_spawn_codex_refuses_tracked_codex_config
 test_spawn_codex_scout_writes_toml_env_with_traceparent
 test_spawn_secondmate_runs_thread_in_home_with_env
 test_spawn_codex_secondmate_writes_toml_env

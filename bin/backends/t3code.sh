@@ -393,6 +393,19 @@ fm_backend_t3code_send_key() {  # <thread-id> <key>
   esac
 }
 
+# Stop the session and leave the thread where it is: the control plane's
+# `exit`. T3 has no composer to type an exit command into, and a stopped
+# session reads `stopped` (dead) in the status table, which is the proof the
+# control plane waits for. A later turn restarts the same agent with its
+# transcript (verified live; docs/verification/runtime-backends.md "T3 Code").
+# Idempotent: a thread with no session to stop is already the end state.
+fm_backend_t3code_agent_stop() {  # <thread-id>
+  local cmd rc
+  cmd=$(fm_backend_t3code_command thread.session.stop "threadId=$1" createdAt=@now) || return 1
+  fm_backend_t3code_dispatch "$cmd" >/dev/null && rc=0 || rc=$?
+  case "$rc" in 0|4) return 0 ;; *) return 1 ;; esac
+}
+
 # Stop the session, then archive the thread so it can never re-create its
 # worktree at a returned slot. Archiving keeps the transcript visible in T3.
 # Idempotent: an archived or deleted thread is already the end state.
@@ -401,9 +414,7 @@ fm_backend_t3code_kill() {  # <thread-id>
   case "$(fm_backend_t3code_probe "$thread")" in
     archived|http-404) return 0 ;;
   esac
-  cmd=$(fm_backend_t3code_command thread.session.stop "threadId=$thread" createdAt=@now) || return 1
-  fm_backend_t3code_dispatch "$cmd" >/dev/null && rc=0 || rc=$?
-  case "$rc" in 0|4) ;; *) return 1 ;; esac
+  fm_backend_t3code_agent_stop "$thread" || return 1
   cmd=$(fm_backend_t3code_command thread.archive "threadId=$thread") || return 1
   fm_backend_t3code_dispatch "$cmd" >/dev/null && rc=0 || rc=$?
   case "$rc" in 0|4) return 0 ;; *) return 1 ;; esac
