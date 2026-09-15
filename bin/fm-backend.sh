@@ -65,7 +65,7 @@ FM_BACKEND_CONFIG_DIR="${FM_CONFIG_OVERRIDE:-$FM_HOME/config}"
 # spawn-capable; unlike tmux/herdr/zellij it is also the worktree provider.
 # cmux is EXPERIMENTAL and spawn-capable, session-provider-only like
 # herdr/zellij - verified against the real 0.64.17 binary (docs/cmux-backend.md).
-# t3code is EXPERIMENTAL, spawn-capable, and explicit-only: T3 Code owns the
+# t3code is EXPERIMENTAL and spawn-capable: T3 Code owns the
 # agent session over HTTP while Treehouse keeps the worktree
 # (docs/t3code-backend.md).
 # codex-app remains deliberately absent; see docs/codex-app-backend.md.
@@ -110,7 +110,7 @@ fm_backend_is_known() {  # <name>
 # CMUX_SOCKET_PATH is independently documented as a user-settable override for
 # pointing the CLI at a non-default socket, so its mere presence would not
 # reliably mean "running inside a cmux-spawned terminal" the way
-# CMUX_WORKSPACE_ID does. cmux is checked LAST because it is a terminal
+# CMUX_WORKSPACE_ID does. cmux is checked after tmux and herdr because it is a terminal
 # application (the outermost layer, like iTerm2/Terminal.app), not a session
 # multiplexer - both tmux and herdr can run nested inside a cmux-provided
 # shell, but cmux cannot run nested inside either of them, so a tmux or herdr
@@ -136,7 +136,7 @@ fm_backend_is_known() {  # <name>
 #      tmux, where the tmux server reparents to launchd and the chain never
 #      reaches cmux - which is fine, because $TMUX already won there.
 # Callers needing the winning signal read FM_BACKEND_DETECT_SIGNAL (set to
-# TMUX, HERDR_ENV, CMUX_WORKSPACE_ID, bundle-id, or ancestry) and
+# TMUX, HERDR_ENV, CMUX_WORKSPACE_ID, bundle-id, ancestry, or T3-shell-cwd) and
 # FM_BACKEND_DETECTED after a direct (non-command-substitution) call.
 FM_BACKEND_CMUX_BUNDLE_ID="com.cmuxterm.app"
 
@@ -165,6 +165,18 @@ fm_backend_detect() {
     FM_BACKEND_DETECTED=cmux
     printf 'cmux'
     return 0
+  fi
+  # T3 injects no environment marker. Only a configured, authorized shell
+  # snapshot with one live worktree-less thread in this home proves the host.
+  if [ -s "$FM_BACKEND_CONFIG_DIR/t3code-token" ] && command -v node >/dev/null 2>&1; then
+    fm_backend_source t3code || return 1
+    if { [ -n "${FM_T3CODE_ORIGIN:-}" ] || [ -s "$(fm_backend_t3code_runtime_file)" ]; } \
+      && fm_backend_t3code_thread_for_home "$FM_HOME" >/dev/null 2>&1; then
+      FM_BACKEND_DETECTED=t3code
+      FM_BACKEND_DETECT_SIGNAL=T3-shell-cwd
+      printf 't3code'
+      return 0
+    fi
   fi
   return 1
 }
@@ -272,6 +284,9 @@ fm_backend_name() {
         *) marker="CMUX_WORKSPACE_ID" ;;
       esac
       echo "NOTICE: auto-detected cmux runtime ($marker) - spawning into the EXPERIMENTAL cmux backend. Set config/backend or pass --backend tmux to opt out." >&2
+    fi
+    if [ "$detected" = t3code ]; then
+      echo "NOTICE: auto-detected t3code runtime (T3 shell cwd matches this home) - spawning into the EXPERIMENTAL t3code backend. Set config/backend or pass --backend tmux to opt out." >&2
     fi
     printf '%s' "$detected"
     return 0

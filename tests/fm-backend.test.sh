@@ -203,6 +203,30 @@ test_backend_name_precedence() {
 # cmux fallback inputs (__CFBundleIdentifier plus a non-Darwin uname fake) -
 # so results never depend on the ambient shell this suite runs inside (a real
 # tmux pane or cmux tab, both normal cases for a captain's session).
+test_backend_detect_t3_configuration_gate() (
+  FM_BACKEND_CONFIG_DIR="$TMP_ROOT/t3-detect-config"
+  mkdir -p "$FM_BACKEND_CONFIG_DIR"
+  FM_HOME="$TMP_ROOT/t3-home"
+  mkdir -p "$FM_HOME"
+  unset TMUX HERDR_ENV CMUX_WORKSPACE_ID FM_BACKEND
+  FM_T3CODE_ORIGIN=http://configured.invalid
+  fm_backend_detect_cmux_fallback() { return 1; }
+  fm_backend_source t3code
+  # HTTP/cwd matching is exercised against a real local server in the T3 suite.
+  # This stub pins only the dispatch gate and winning-signal globals.
+  fm_backend_t3code_thread_for_home() {
+    [ "$1" = "$FM_HOME" ] || fail 'T3 lookup must receive the active home'
+    printf thread
+  }
+  if fm_backend_detect; then fail 'T3 must not probe without its bearer'; fi
+  printf 'test-bearer\n' > "$FM_BACKEND_CONFIG_DIR/t3code-token"
+  fm_backend_detect >/dev/null || fail 'configured matching T3 must be detected'
+  [ "$FM_BACKEND_DETECTED:$FM_BACKEND_DETECT_SIGNAL" = t3code:T3-shell-cwd ] || fail 'T3 detection must report its source'
+  FM_BACKEND=orca
+  [ "$(fm_backend_name)" = orca ] || fail 'explicit Orca remains selectable ahead of T3'
+  pass 'backend auto-detection gates T3 by configuration and preserves explicit selection'
+)
+
 test_backend_detect_precedence() {
   local out
 
@@ -1143,6 +1167,7 @@ test_spawn_autodetect_nesting_resolves_tmux_silently() {
 }
 
 test_backend_name_precedence
+test_backend_detect_t3_configuration_gate
 test_backend_detect_precedence
 test_backend_detect_cmux_fallback_bundle_id
 test_backend_detect_cmux_fallback_requires_darwin

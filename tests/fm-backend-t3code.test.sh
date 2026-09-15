@@ -450,6 +450,36 @@ test_thread_for_home_zero_one_and_ambiguous() {
   pass "fm_backend_t3code_thread_for_home: zero, one, ambiguous, and unreachable"
 }
 
+test_autodetect_t3_home_and_precedence() {
+  local out
+  t3_case autodetect
+  FM_T3_HOME="$REPO" t3_world_set 'w.shell.threads=[{id:"captain",projectId:"proj-1",worktreePath:null,archivedAt:null,session:{status:"running"}}]'
+  # Disable host cmux ancestry while retaining all explicit marker precedence.
+  detect() {
+    t3_run 'FM_HOME="$1"; unset TMUX HERDR_ENV CMUX_WORKSPACE_ID FM_BACKEND; fm_backend_detect_cmux_fallback() { return 1; }; eval "$2"; fm_backend_name' "$REPO" "$1"
+  }
+  out=$(detect '' 2>"$CASE_DIR/notice")
+  [ "$out" = t3code ] || fail "a unique live home thread must auto-detect T3, got $out"
+  assert_grep 'auto-detected t3code' "$CASE_DIR/notice" "T3 detection must announce its opt-out"
+  for setting in 'TMUX=socket' 'HERDR_ENV=1' 'CMUX_WORKSPACE_ID=workspace' 'FM_BACKEND=tmux'; do
+    out=$(detect "$setting" 2>/dev/null)
+    [ "$out" != t3code ] || fail "$setting must win over T3 discovery"
+  done
+  printf 'zellij\n' > "$CONFIG/backend"
+  [ "$(detect '' 2>/dev/null)" = zellij ] || fail 'explicit config/backend must win'
+  rm "$CONFIG/backend"
+  t3_world_set 'w.shell.threads[0].worktreePath="/other"'
+  [ "$(detect '')" = tmux ] || fail 'a worker worktree must not identify the home supervisor'
+  t3_world_set 'w.shell.threads[0].worktreePath=null; w.shell.threads.push({...w.shell.threads[0],id:"other"})'
+  [ "$(detect '')" = tmux ] || fail 'ambiguous home threads must not auto-detect T3'
+  t3_world_set 'w.shell.threads.pop()'
+  rm "$CONFIG/t3code-token"
+  : > "$LOG"
+  [ "$(detect '')" = tmux ] || fail 'missing bearer must not auto-detect T3'
+  [ ! -s "$LOG" ] || fail 'unconfigured T3 discovery must make no HTTP request'
+  pass 'T3 auto-detection: unique cwd match, configured credentials, explicit overrides, and existing marker precedence'
+}
+
 test_capture_renders_messages_and_status() {
   local out
   t3_case capture running
@@ -1244,6 +1274,7 @@ test_project_ensure_matches_realpath_or_creates
 test_model_selection_table
 test_thread_create_and_turn_start_payloads
 test_thread_for_home_zero_one_and_ambiguous
+test_autodetect_t3_home_and_precedence
 test_capture_renders_messages_and_status
 test_send_key_mapping
 test_send_text_submit_verdicts
