@@ -69,7 +69,7 @@
 #   codex-app is not a known backend yet; docs/codex-app-backend.md owns that
 #   blocked backend contract. Default tmux spawns do not write backend= to meta;
 #   absent backend= means tmux. cmux does not support --secondmate spawns yet.
-#   t3code is explicit-only and experimental (docs/t3code-backend.md): T3 Code
+#   t3code is experimental (docs/t3code-backend.md): T3 Code
 #   owns the agent session, so the spawn leases a treehouse slot durably,
 #   creates a T3 thread on it, and starts the launch turn over HTTP instead of
 #   typing into a pane; only claude and codex harnesses. The exports a pane
@@ -1326,12 +1326,7 @@ if [ "$RELAUNCH" -eq 0 ]; then
     echo "error: backend=cmux does not support --secondmate spawns yet" >&2
     exit 1
   fi
-  if [ "$BACKEND" = orca ]; then
-    fm_backend_orca_runtime_check || exit 1
-  fi
-  if [ "$BACKEND" = t3code ]; then
-    fm_backend_t3code_runtime_check || exit 1
-  fi
+  fm_backend_runtime_check "$BACKEND" || exit 1
 fi
 SPAWN_TASK_LOCK="$STATE/.spawn-$ID.lock"
 if ! fm_lock_try_acquire "$SPAWN_TASK_LOCK"; then
@@ -1913,12 +1908,7 @@ if [ "$KIND" = secondmate ] && [ -z "$ARG3" ]; then
     fi
   fi
 fi
-if [ "$BACKEND" = t3code ]; then
-  case "$HARNESS" in
-    claude|codex) ;;
-    *) echo "error: backend=t3code runs only the claude and codex harnesses, not '$HARNESS'" >&2; exit 1 ;;
-  esac
-fi
+fm_backend_validate_harness "$BACKEND" "$HARNESS" || exit 1
 # Ultra is an explicit native capability, never a Pi thinking-level alias.
 # Validate the fully resolved profile before worktree or endpoint provisioning.
 if [ "$EFFORT" = ultra ]; then
@@ -2837,15 +2827,15 @@ if [ "$RELAUNCH" -eq 1 ]; then
 else
 case "$BACKEND" in
   tmux)
-    SES=$(fm_backend_tmux_container_ensure)
+    SES=$(fm_backend_container_ensure tmux)
     T="$SES:$W"
-    # #134 robustness (tmux): fm_backend_tmux_create_task captures a stable window
+    # #134 robustness (tmux): fm_backend_create_task tmux captures a stable window
     # id and pins the window name (automatic-rename/allow-rename off) so a captain's
     # non-default tmux config cannot rename the window away from fm-<id> once
     # treehouse cd's into the worktree. WT_TARGET carries that stable id for the
     # rename-critical worktree-detection steps below; the persisted window= handle
     # stays $T (the name form), which is safe now that rename is disabled.
-    WID=$(fm_backend_tmux_create_task "$SES" "$W" "$PROJ_ABS") || exit 1
+    WID=$(fm_backend_create_task tmux "$SES" "$W" "$PROJ_ABS") || exit 1
     WT_TARGET="$WID"
     ;;
   herdr)
@@ -2993,8 +2983,8 @@ case "$BACKEND" in
       fi
     fi
     if [ "$HERDR_PROJECTED" -ne 1 ]; then
-      HERDR_CONTAINER_RAW=$(FM_HOME="$HERDR_LABEL_HOME" fm_backend_herdr_container_ensure "$PROJ_ABS" "$HERDR_LAUNCHER_RELATIONSHIP") || exit 1
-      # fm_backend_herdr_container_ensure echoes "<session>:<workspace_id>\t<seeded_default_tab_id>"
+      HERDR_CONTAINER_RAW=$(FM_HOME="$HERDR_LABEL_HOME" fm_backend_container_ensure herdr "$PROJ_ABS" "$HERDR_LAUNCHER_RELATIONSHIP") || exit 1
+      # fm_backend_container_ensure herdr echoes "<session>:<workspace_id>\t<seeded_default_tab_id>"
       # (the second field empty when this call ADOPTED a pre-existing workspace
       # rather than creating a fresh one). Split on the guaranteed single tab
       # character; the seeded tab id is threaded through to create_task
@@ -3004,7 +2994,7 @@ case "$BACKEND" in
       HERDR_SEEDED_DEFAULT_TAB_ID=${HERDR_CONTAINER_RAW#*$'\t'}
       HERDR_SES=${CONTAINER%%:*}
       HERDR_WORKSPACE_ID=${CONTAINER#*:}
-      HERDR_TASK_IDS=$(FM_HOME="$HERDR_LABEL_HOME" fm_backend_herdr_create_task "$CONTAINER" "$W" "$PROJ_ABS" "$HERDR_SEEDED_DEFAULT_TAB_ID") || exit 1
+      HERDR_TASK_IDS=$(FM_HOME="$HERDR_LABEL_HOME" fm_backend_create_task herdr "$CONTAINER" "$W" "$PROJ_ABS" "$HERDR_SEEDED_DEFAULT_TAB_ID") || exit 1
       read -r HERDR_TAB_ID HERDR_PANE_ID <<EOF
 $HERDR_TASK_IDS
 EOF
@@ -3016,8 +3006,8 @@ EOF
     T="$HERDR_SES:$HERDR_PANE_ID"
     ;;
   zellij)
-    ZELLIJ_SES=$(fm_backend_zellij_container_ensure) || exit 1
-    ZELLIJ_TASK_IDS=$(fm_backend_zellij_create_task "$ZELLIJ_SES" "$W" "$PROJ_ABS") || exit 1
+    ZELLIJ_SES=$(fm_backend_container_ensure zellij) || exit 1
+    ZELLIJ_TASK_IDS=$(fm_backend_create_task zellij "$ZELLIJ_SES" "$W" "$PROJ_ABS") || exit 1
     read -r ZELLIJ_TAB_ID ZELLIJ_PANE_ID <<EOF
 $ZELLIJ_TASK_IDS
 EOF
@@ -3028,8 +3018,8 @@ EOF
     T="$ZELLIJ_SES:$ZELLIJ_PANE_ID"
     ;;
   cmux)
-    fm_backend_cmux_container_ensure || exit 1
-    CMUX_TASK_IDS=$(fm_backend_cmux_create_task "$W" "$PROJ_ABS") || exit 1
+    fm_backend_container_ensure cmux || exit 1
+    CMUX_TASK_IDS=$(fm_backend_create_task cmux "$W" "$PROJ_ABS") || exit 1
     read -r CMUX_WORKSPACE_ID CMUX_SURFACE_ID <<EOF
 $CMUX_TASK_IDS
 EOF
@@ -3060,7 +3050,7 @@ EOF
     fi
     validate_spawn_worktree "orca worktree create" "$W"
     if [ -z "$ORCA_TERMINAL" ]; then
-      ORCA_TERMINAL=$(fm_backend_orca_terminal_create "$ORCA_WORKTREE_ID" "$W") || exit 1
+      ORCA_TERMINAL=$(fm_backend_create_task orca "$ORCA_WORKTREE_ID" "$W") || exit 1
     fi
     T="$ORCA_TERMINAL"
     ;;
@@ -3076,12 +3066,12 @@ EOF
     fi
     # The T3 project is the directory the agent runs in: the project for a
     # worker, the home itself for a secondmate.
-    T3CODE_PROJECT_ID=$(fm_backend_t3code_project_ensure "$PROJ_ABS") || exit 1
+    T3CODE_PROJECT_ID=$(fm_backend_container_ensure "$BACKEND" "$PROJ_ABS") || exit 1
     T3CODE_MODEL_SELECTION=$(fm_backend_t3code_model_selection "$HARNESS" "${MODEL:-default}" "${EFFORT:-default}" "$T3CODE_PROJECT_ID") || exit 1
     if [ "$KIND" = secondmate ]; then
       # No worktree of its own: worktreePath null runs the thread in the
       # project's workspaceRoot, the home, on whatever branch it is on.
-      T=$(fm_backend_t3code_thread_create "$T3CODE_PROJECT_ID" "$W" \
+      T=$(fm_backend_create_task "$BACKEND" "$T3CODE_PROJECT_ID" "$W" \
         "$(git -C "$PROJ_ABS" branch --show-current 2>/dev/null || true)" "" "$T3CODE_MODEL_SELECTION") || exit 1
     else
       # A durable lease (bin/fm-home-seed.sh's pattern): there is no pane to run
@@ -3094,7 +3084,7 @@ EOF
       [ -n "$WT" ] || { echo "error: treehouse get --lease did not report a worktree for $ID" >&2; exit 1; }
       T3CODE_LEASED=1
       validate_spawn_worktree "treehouse get --lease" "$W"
-      T=$(fm_backend_t3code_thread_create "$T3CODE_PROJECT_ID" "$W" \
+      T=$(fm_backend_create_task "$BACKEND" "$T3CODE_PROJECT_ID" "$W" \
         "$(git -C "$WT" branch --show-current 2>/dev/null || true)" "$WT" "$T3CODE_MODEL_SELECTION") || exit 1
     fi
     T3CODE_ABORT_CLEANUP=1
@@ -3113,14 +3103,7 @@ fi
 # worktree-detection steps below must never reference an unbound WT_TARGET under set -u.
 : "${WT_TARGET:=$T}"
 spawn_send_text_line() {  # <target> <text>
-  case "$BACKEND" in
-    tmux) fm_backend_tmux_send_text_line "$1" "$2" ;;
-    herdr) fm_backend_herdr_send_text_line "$1" "$2" ;;
-    zellij) fm_backend_zellij_send_text_line "$1" "$2" "$W" ;;
-    orca) fm_backend_orca_send_text_line "$1" "$2" ;;
-    cmux) fm_backend_cmux_send_text_line "$1" "$2" "$W" ;;
-    t3code) echo "error: backend=t3code has no pane to type into" >&2; return 1 ;;
-  esac
+  fm_backend_send_text_line "$BACKEND" "$1" "$2" "$W"
 }
 spawn_current_path() {  # <target>
   case "$BACKEND" in
@@ -3131,24 +3114,10 @@ spawn_current_path() {  # <target>
   esac
 }
 spawn_send_literal() {  # <target> <text>
-  case "$BACKEND" in
-    tmux) fm_backend_tmux_send_literal "$1" "$2" ;;
-    herdr) fm_backend_herdr_send_literal "$1" "$2" ;;
-    zellij) fm_backend_zellij_send_literal "$1" "$2" "$W" ;;
-    orca) fm_backend_orca_send_literal "$1" "$2" ;;
-    cmux) fm_backend_cmux_send_literal "$1" "$2" "$W" ;;
-    t3code) echo "error: backend=t3code has no pane to type into" >&2; return 1 ;;
-  esac
+  fm_backend_send_literal "$BACKEND" "$1" "$2" "$W"
 }
 spawn_send_key() {  # <target> <key>
-  case "$BACKEND" in
-    tmux) fm_backend_tmux_send_key "$1" "$2" ;;
-    herdr) fm_backend_herdr_send_key "$1" "$2" ;;
-    zellij) fm_backend_zellij_send_key "$1" "$2" "$W" ;;
-    orca) fm_backend_orca_send_key "$1" "$2" ;;
-    cmux) fm_backend_cmux_send_key "$1" "$2" "$W" ;;
-    t3code) echo "error: backend=t3code has no pane to type into" >&2; return 1 ;;
-  esac
+  fm_backend_type_key "$BACKEND" "$1" "$2" "$W"
 }
 
 kimi_capture() {

@@ -22,7 +22,7 @@
 #                     codex=codex by default)
 # FM_T3CODE_ORIGIN overrides the origin read from ~/.t3/userdata/server-runtime.json.
 
-FM_BACKEND_T3CODE_MIN_VERSION=0.0.41
+FM_BACKEND_T3CODE_MIN_VERSION=0.0.41-nightly.20260914.1707
 
 fm_backend_t3code_config_dir() {
   printf '%s' "${FM_BACKEND_CONFIG_DIR:-${FM_CONFIG_OVERRIDE:-${FM_HOME:-.}/config}}"
@@ -134,17 +134,33 @@ fm_backend_t3code_runtime_check() {
   fm_backend_t3code_tool_check || return 1
   local descriptor
   descriptor=$(fm_backend_t3code_api GET /.well-known/t3/environment) || return 1
-  # The prerelease tag is ignored on purpose: the verified build is a
-  # 0.0.41 nightly, which strict semver would order below the floor.
   # shellcheck disable=SC2016  # Single quotes are deliberate: ${...} belongs to the Node snippet.
   printf '%s' "$descriptor" | node -e '
 const data = JSON.parse(require("fs").readFileSync(0, "utf8"));
 const min = process.argv[1];
 const version = String(data.serverVersion || "");
-const nums = (v) => v.split("-")[0].split(".").map((n) => parseInt(n, 10) || 0);
-const [have, want] = [nums(version), nums(min)];
-let ok = true;
-for (let i = 0; i < 3; i++) { if ((have[i] || 0) !== (want[i] || 0)) { ok = (have[i] || 0) > (want[i] || 0); break; } }
+const parse = (v) => {
+  const m = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(v);
+  if (!m) return null;
+  const pre = m[4] ? m[4].split(".") : [];
+  if (pre.some((id) => /^0[0-9]+$/.test(id))) return null;
+  return { core: m.slice(1, 4).map(BigInt), pre };
+};
+const compare = (a, b) => {
+  for (let i = 0; i < 3; i++) if (a.core[i] !== b.core[i]) return a.core[i] > b.core[i] ? 1 : -1;
+  if (!a.pre.length || !b.pre.length) return Number(!a.pre.length) - Number(!b.pre.length);
+  for (let i = 0; i < Math.max(a.pre.length, b.pre.length); i++) {
+    const x = a.pre[i], y = b.pre[i];
+    if (x === y) continue;
+    if (x === undefined || y === undefined) return x === undefined ? -1 : 1;
+    const xn = /^[0-9]+$/.test(x), yn = /^[0-9]+$/.test(y);
+    if (xn !== yn) return xn ? -1 : 1;
+    return (xn ? BigInt(x) > BigInt(y) : x > y) ? 1 : -1;
+  }
+  return 0;
+};
+const have = parse(version), want = parse(min);
+const ok = have && want && compare(have, want) >= 0;
 if (!ok) { console.error(`error: backend=t3code requires a T3 server >= ${min}; this one reports ${version || "no version"}; upgrade T3 Code`); process.exit(1); }
 if (!(data.capabilities && data.capabilities.threadSettlement === true)) { console.error(`error: backend=t3code requires the threadSettlement capability; T3 ${version} does not report it; upgrade T3 Code`); process.exit(1); }
 ' "$FM_BACKEND_T3CODE_MIN_VERSION" || return 1
@@ -419,3 +435,118 @@ fm_backend_t3code_kill() {  # <thread-id>
   fm_backend_t3code_dispatch "$cmd" >/dev/null && rc=0 || rc=$?
   case "$rc" in 0|4) return 0 ;; *) return 1 ;; esac
 }
+
+# Native shell stream, bounded by the watcher's existing poll budget. Node's
+# built-in WebSocket is optional: an older Node retains the HTTP poll path.
+fm_backend_t3code_events_capable() {  # [session]
+  node -e 'process.exit(typeof WebSocket === "function" ? 0 : 1)' 2>/dev/null || return 1
+  fm_backend_t3code_runtime_check >/dev/null 2>&1
+}
+
+fm_backend_t3code_event_reader_cmd() {
+  printf 'node\n%s/t3code-eventwait.cjs\n' "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+}
+
+# The stream carries the same session row as HTTP plus explicit pending-human
+# flags. Only those flags add blocked; a stopped/error/absent thread cannot
+# become actionable merely because an old request flag survived.
+fm_backend_t3code_normalize_event() {  # <thread> <project> <session-status> <pending> <instance>
+  local state row
+  row=$(fm_backend_t3code_state_row "$3")
+  case "$row" in
+    'busy alive') state=working ;;
+    'idle alive') state=idle ;;
+    *) state=unknown ;;
+  esac
+  if [ "${row#* }" = alive ] && [ "$4" = true ]; then state=blocked; fi
+  fm_transition_record "$1" "$2" '' "$state" "$5"
+}
+
+fm_backend_t3code_escalation_marker() {  # <state-dir> <thread>
+  printf '%s/.t3code-escalated-%s' "$1" "$(printf '%s' "$2" | tr ':/.' '___')"
+}
+
+fm_backend_t3code_commit_transition() {  # <state-dir> <session> <record>
+  local thread
+  thread=$(fm_transition_pane_id "$3")
+  [ -n "$thread" ] || return 1
+  : > "$(fm_backend_t3code_escalation_marker "$1" "$thread")"
+}
+
+fm_backend_t3code_clear_transition() {  # <state-dir> <thread>
+  [ -n "$2" ] || return 0
+  rm -f "$(fm_backend_t3code_escalation_marker "$1" "$2")"
+}
+
+# Returns 0 with one normalized actionable record, 1 after a clean full-budget
+# wait, or 2 for polling fallback. Snapshot rows reconcile reconnect gaps;
+# dedupe is committed only after the watcher durably queues the wake.
+fm_backend_t3code_wait_transition() {  # <session> <timeout> <state-dir> <thread...>
+  local timeout=$2 state=$3
+  shift 3
+  [ "$#" -gt 0 ] || return 2
+  if [ "${FM_BACKEND_EVENTS_CAPABILITY_CONFIRMED:-0}" != 1 ]; then
+    fm_backend_t3code_events_capable || return 2
+  fi
+  # shellcheck source=bin/fm-transition-lib.sh
+  . "$(dirname "${BASH_SOURCE[0]}")/../fm-transition-lib.sh"
+  local reader=() word dir pid line record marker action rc=1 reader_rc=0
+  while IFS= read -r word; do reader+=("$word"); done < <(fm_backend_t3code_event_reader_cmd)
+  dir=$(mktemp -d "${TMPDIR:-/tmp}/fm-t3code-eventwait.XXXXXX") || return 2
+  mkfifo "$dir/events" || { rmdir "$dir"; return 2; }
+  FM_T3CODE_RUNTIME_FILE=$(fm_backend_t3code_runtime_file) \
+  FM_T3CODE_TOKEN_FILE="$(fm_backend_t3code_config_dir)/t3code-token" \
+    "${reader[@]}" "$timeout" "$@" > "$dir/events" 2>/dev/null &
+  pid=$!
+  exec 9< "$dir/events"
+  if ! IFS= read -r line <&9 || [ "$line" != subscribed ]; then rc=2; fi
+  while [ "$rc" -eq 1 ] && IFS= read -r line <&9; do
+    record=$(fm_backend_t3code_normalize_event \
+      "$(printf '%s' "$line" | cut -f1)" "$(printf '%s' "$line" | cut -f2)" \
+      "$(printf '%s' "$line" | cut -f3)" "$(printf '%s' "$line" | cut -f4)" \
+      "$(printf '%s' "$line" | cut -f5)")
+    marker=$(fm_backend_t3code_escalation_marker "$state" "$(fm_transition_pane_id "$record")")
+    action=$(fm_transition_policy "$(fm_transition_to_status "$record")")
+    case "$action" in
+      actionable)
+        if [ ! -e "$marker" ]; then printf '%s' "$record"; rc=0; fi
+        ;;
+      absorb) rm -f "$marker" ;;
+    esac
+  done
+  if [ "$rc" -ne 1 ]; then kill "$pid" 2>/dev/null || true; fi
+  wait "$pid" 2>/dev/null || reader_rc=$?
+  exec 9<&-
+  rm -rf "$dir"
+  [ "$rc" -ne 0 ] || return 0
+  [ "$rc" -ne 2 ] && [ "$reader_rc" -eq 0 ] && return 1
+  return 2
+}
+
+# Shared spawn operations retain the T3 payload helpers' argument order.
+fm_backend_t3code_container_ensure() {  # <project-path> -> project id
+  fm_backend_t3code_project_ensure "$@"
+}
+
+fm_backend_t3code_create_task() {  # <project-id> <title> <branch> <worktree> <model-selection-json>
+  fm_backend_t3code_thread_create "$@"
+}
+
+fm_backend_t3code_target_ready() {  # <thread-id>
+  fm_backend_t3code_target_exists "$1"
+}
+
+fm_backend_t3code_validate_harness() {  # <harness>
+  case "$1" in
+    claude|codex) return 0 ;;
+    *) echo "error: backend=t3code runs only the claude and codex harnesses, not '$1'" >&2; return 1 ;;
+  esac
+}
+
+fm_backend_t3code_send_literal() {
+  echo "error: backend=t3code has no pane to type into" >&2
+  return 1
+}
+
+fm_backend_t3code_send_text_line() { fm_backend_t3code_send_literal "$@"; }
+fm_backend_t3code_type_key() { fm_backend_t3code_send_literal "$@"; }

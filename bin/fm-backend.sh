@@ -65,7 +65,7 @@ FM_BACKEND_CONFIG_DIR="${FM_CONFIG_OVERRIDE:-$FM_HOME/config}"
 # spawn-capable; unlike tmux/herdr/zellij it is also the worktree provider.
 # cmux is EXPERIMENTAL and spawn-capable, session-provider-only like
 # herdr/zellij - verified against the real 0.64.17 binary (docs/cmux-backend.md).
-# t3code is EXPERIMENTAL, spawn-capable, and explicit-only: T3 Code owns the
+# t3code is EXPERIMENTAL and spawn-capable: T3 Code owns the
 # agent session over HTTP while Treehouse keeps the worktree
 # (docs/t3code-backend.md).
 # codex-app remains deliberately absent; see docs/codex-app-backend.md.
@@ -110,7 +110,7 @@ fm_backend_is_known() {  # <name>
 # CMUX_SOCKET_PATH is independently documented as a user-settable override for
 # pointing the CLI at a non-default socket, so its mere presence would not
 # reliably mean "running inside a cmux-spawned terminal" the way
-# CMUX_WORKSPACE_ID does. cmux is checked LAST because it is a terminal
+# CMUX_WORKSPACE_ID does. cmux is checked after tmux and herdr because it is a terminal
 # application (the outermost layer, like iTerm2/Terminal.app), not a session
 # multiplexer - both tmux and herdr can run nested inside a cmux-provided
 # shell, but cmux cannot run nested inside either of them, so a tmux or herdr
@@ -136,7 +136,7 @@ fm_backend_is_known() {  # <name>
 #      tmux, where the tmux server reparents to launchd and the chain never
 #      reaches cmux - which is fine, because $TMUX already won there.
 # Callers needing the winning signal read FM_BACKEND_DETECT_SIGNAL (set to
-# TMUX, HERDR_ENV, CMUX_WORKSPACE_ID, bundle-id, or ancestry) and
+# TMUX, HERDR_ENV, CMUX_WORKSPACE_ID, bundle-id, ancestry, or T3-shell-cwd) and
 # FM_BACKEND_DETECTED after a direct (non-command-substitution) call.
 FM_BACKEND_CMUX_BUNDLE_ID="com.cmuxterm.app"
 
@@ -165,6 +165,18 @@ fm_backend_detect() {
     FM_BACKEND_DETECTED=cmux
     printf 'cmux'
     return 0
+  fi
+  # T3 injects no environment marker. Only a configured, authorized shell
+  # snapshot with one live worktree-less thread in this home proves the host.
+  if [ -s "$FM_BACKEND_CONFIG_DIR/t3code-token" ] && command -v node >/dev/null 2>&1; then
+    fm_backend_source t3code || return 1
+    if { [ -n "${FM_T3CODE_ORIGIN:-}" ] || [ -s "$(fm_backend_t3code_runtime_file)" ]; } \
+      && fm_backend_t3code_thread_for_home "$FM_HOME" >/dev/null 2>&1; then
+      FM_BACKEND_DETECTED=t3code
+      FM_BACKEND_DETECT_SIGNAL=T3-shell-cwd
+      printf 't3code'
+      return 0
+    fi
   fi
   return 1
 }
@@ -272,6 +284,9 @@ fm_backend_name() {
         *) marker="CMUX_WORKSPACE_ID" ;;
       esac
       echo "NOTICE: auto-detected cmux runtime ($marker) - spawning into the EXPERIMENTAL cmux backend. Set config/backend or pass --backend tmux to opt out." >&2
+    fi
+    if [ "$detected" = t3code ]; then
+      echo "NOTICE: auto-detected t3code runtime (T3 shell cwd matches this home) - spawning into the EXPERIMENTAL t3code backend. Set config/backend or pass --backend tmux to opt out." >&2
     fi
     printf '%s' "$detected"
     return 0
@@ -987,15 +1002,15 @@ fm_backend_agent_alive() {  # <backend> <target>
 # and for those backends replaces its blind `sleep POLL` with a bounded wait on
 # fm_backend_wait_transition. Every push-capable backend reuses the shared
 # normalized-transition shape and policy table (bin/fm-transition-lib.sh); today
-# only herdr implements the surface (docs/herdr-backend.md "Native
-# pane.agent_status_changed push escalation"). A backend with no native push
+# herdr and t3code implement the surface (see their backend guides).
+# A backend with no native push
 # reports has-push false and returns 2 from the dispatchers below, so the
 # watcher falls back to its poll loop - the permanent fail-closed backstop.
 
 # fm_backend_has_push: 0 if <backend> exposes a native transition push stream.
 fm_backend_has_push() {  # <backend>
   case "$1" in
-    herdr) return 0 ;;
+    herdr|t3code) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -1011,6 +1026,7 @@ fm_backend_events_capable() {  # <backend> <session>
   fm_backend_source "$backend" || return 1
   case "$backend" in
     herdr) fm_backend_herdr_events_capable "$@" ;;
+    t3code) fm_backend_t3code_events_capable "$@" ;;
     *) return 1 ;;
   esac
 }
@@ -1028,6 +1044,7 @@ fm_backend_wait_transition() {  # <backend> <session> <timeout_secs> <state_dir>
   fm_backend_source "$backend" || return 2
   case "$backend" in
     herdr) fm_backend_herdr_wait_transition "$@" ;;
+    t3code) fm_backend_t3code_wait_transition "$@" ;;
     *) return 2 ;;
   esac
 }
@@ -1039,6 +1056,7 @@ fm_backend_commit_transition() {  # <backend> <state_dir> <session> <record>
   fm_backend_source "$backend" || return 1
   case "$backend" in
     herdr) fm_backend_herdr_commit_transition "$@" ;;
+    t3code) fm_backend_t3code_commit_transition "$@" ;;
     *) return 1 ;;
   esac
 }
@@ -1050,6 +1068,120 @@ fm_backend_clear_transition() {  # <backend> <state_dir> <window>
   fm_backend_source "$backend" || return 1
   case "$backend" in
     herdr) fm_backend_herdr_clear_transition "$@" ;;
+    t3code) fm_backend_t3code_clear_transition "$@" ;;
     *) return 0 ;;
+  esac
+}
+
+# Event connection grouping and record identity differ from pane target syntax.
+# T3 uses one configured server for all threads; pane backends retain session:id.
+fm_backend_event_session() {  # <backend> <target>
+  case "$1" in t3code) printf 'server' ;; *) printf '%s' "${2%%:*}" ;; esac
+}
+
+fm_backend_transition_target() {  # <backend> <session> <endpoint-id>
+  case "$1" in t3code) printf '%s' "$3" ;; *) printf '%s:%s' "$2" "$3" ;; esac
+}
+
+# Early spawn checks for API-owned sessions. Other backends keep their
+# existing admission checks in container_ensure at endpoint provisioning.
+fm_backend_runtime_check() {  # <backend>
+  fm_backend_source "$1" || return 1
+  case "$1" in
+    orca) fm_backend_orca_runtime_check ;;
+    t3code) fm_backend_t3code_runtime_check ;;
+    *) return 0 ;;
+  esac
+}
+
+fm_backend_validate_harness() {  # <backend> <harness>
+  fm_backend_source "$1" || return 1
+  case "$1" in
+    t3code) fm_backend_t3code_validate_harness "$2" ;;
+    *) return 0 ;;
+  esac
+}
+
+# Container/create args and returned ids follow each adapter's documented
+# protocol. Dispatch preserves them, including Herdr's seeded-tab result.
+fm_backend_container_ensure() {  # <backend> [adapter args...]
+  local backend=$1
+  shift
+  fm_backend_source "$backend" || return 1
+  case "$backend" in
+    tmux) fm_backend_tmux_container_ensure "$@" ;;
+    herdr) fm_backend_herdr_container_ensure "$@" ;;
+    zellij) fm_backend_zellij_container_ensure "$@" ;;
+    cmux) fm_backend_cmux_container_ensure "$@" ;;
+    t3code) fm_backend_t3code_container_ensure "$@" ;;
+    *) echo "error: no container-ensure implementation for backend '$backend'" >&2; return 1 ;;
+  esac
+}
+
+fm_backend_create_task() {  # <backend> <adapter args...>
+  local backend=$1
+  shift
+  fm_backend_source "$backend" || return 1
+  case "$backend" in
+    tmux) fm_backend_tmux_create_task "$@" ;;
+    herdr) fm_backend_herdr_create_task "$@" ;;
+    zellij) fm_backend_zellij_create_task "$@" ;;
+    cmux) fm_backend_cmux_create_task "$@" ;;
+    orca) fm_backend_orca_terminal_create "$@" ;;
+    t3code) fm_backend_t3code_create_task "$@" ;;
+  esac
+}
+
+fm_backend_target_ready() {  # <backend> <target> [expected-label]
+  local backend=$1
+  shift
+  fm_backend_source "$backend" || return 1
+  case "$backend" in
+    herdr) fm_backend_herdr_target_ready "$1" ;;
+    zellij) fm_backend_zellij_target_ready "$@" ;;
+    cmux) fm_backend_cmux_target_ready "$@" ;;
+    t3code) fm_backend_t3code_target_ready "$1" ;;
+    *) fm_backend_target_exists "$backend" "$@" ;;
+  esac
+}
+
+fm_backend_send_text_line() {  # <backend> <target> <text> [expected-label]
+  local backend=$1
+  shift
+  fm_backend_source "$backend" || return 1
+  case "$backend" in
+    tmux) fm_backend_tmux_send_text_line "$1" "$2" ;;
+    herdr) fm_backend_herdr_send_text_line "$1" "$2" ;;
+    zellij) fm_backend_zellij_send_text_line "$@" ;;
+    orca) fm_backend_orca_send_text_line "$1" "$2" ;;
+    cmux) fm_backend_cmux_send_text_line "$@" ;;
+    t3code) fm_backend_t3code_send_text_line "$@" ;;
+  esac
+}
+
+fm_backend_send_literal() {  # <backend> <target> <text> [expected-label]
+  local backend=$1
+  shift
+  fm_backend_source "$backend" || return 1
+  case "$backend" in
+    tmux) fm_backend_tmux_send_literal "$1" "$2" ;;
+    herdr) fm_backend_herdr_send_literal "$1" "$2" ;;
+    zellij) fm_backend_zellij_send_literal "$@" ;;
+    orca) fm_backend_orca_send_literal "$1" "$2" ;;
+    cmux) fm_backend_cmux_send_literal "$@" ;;
+    t3code) fm_backend_t3code_send_literal "$@" ;;
+  esac
+}
+
+# Typing during shell launch is distinct from runtime control keys: T3 can
+# interrupt a turn, but refuses every attempt to type a key into a shell.
+fm_backend_type_key() {  # <backend> <target> <key> [expected-label]
+  local backend=$1
+  shift
+  fm_backend_source "$backend" || return 1
+  case "$backend" in
+    t3code) fm_backend_t3code_type_key "$@" ;;
+    tmux|herdr|orca) fm_backend_send_key "$backend" "$1" "$2" ;;
+    *) fm_backend_send_key "$backend" "$@" ;;
   esac
 }

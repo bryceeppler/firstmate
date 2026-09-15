@@ -203,6 +203,57 @@ test_backend_name_precedence() {
 # cmux fallback inputs (__CFBundleIdentifier plus a non-Darwin uname fake) -
 # so results never depend on the ambient shell this suite runs inside (a real
 # tmux pane or cmux tab, both normal cases for a captain's session).
+test_spawn_primitive_dispatch_preserves_adapter_arguments() (
+  local backend op expected actual adapter_op
+  for backend in tmux herdr zellij cmux orca; do
+    fm_backend_source "$backend" || fail "cannot load $backend adapter"
+    for op in create_task container_ensure send_literal send_text_line; do
+      [ "$backend:$op" != orca:container_ensure ] || continue
+      adapter_op=$op
+      [ "$backend:$op" != orca:create_task ] || adapter_op=terminal_create
+      # Replace only the adapter endpoint with an argv recorder. No backend
+      # CLI or lifecycle command runs in this dispatcher-conformance test.
+      eval "fm_backend_${backend}_${adapter_op}"'() { printf "<%s>" "$@"; }'
+      case "$op:$backend" in
+        send_literal:tmux|send_literal:herdr|send_literal:orca|send_text_line:tmux|send_text_line:herdr|send_text_line:orca)
+          expected='<target with spaces><text with spaces>' ;;
+        *) expected='<target with spaces><text with spaces><label>' ;;
+      esac
+      actual=$("fm_backend_$op" "$backend" 'target with spaces' 'text with spaces' label)
+      [ "$actual" = "$expected" ] || fail "$backend $op changed arguments: $actual"
+    done
+    eval "fm_backend_${backend}_send_key"'() { printf "<%s>" "$@"; }'
+    expected='<target><Enter>'
+    case "$backend" in zellij|cmux) expected="$expected<label>" ;; esac
+    [ "$(fm_backend_type_key "$backend" target Enter label)" = "$expected" ] || fail "$backend typing-key arguments changed"
+  done
+  pass 'shared spawn dispatch preserves arguments for every existing pane backend'
+)
+
+test_backend_detect_t3_configuration_gate() (
+  FM_BACKEND_CONFIG_DIR="$TMP_ROOT/t3-detect-config"
+  mkdir -p "$FM_BACKEND_CONFIG_DIR"
+  FM_HOME="$TMP_ROOT/t3-home"
+  mkdir -p "$FM_HOME"
+  unset TMUX HERDR_ENV CMUX_WORKSPACE_ID FM_BACKEND
+  FM_T3CODE_ORIGIN=http://configured.invalid
+  fm_backend_detect_cmux_fallback() { return 1; }
+  fm_backend_source t3code
+  # HTTP/cwd matching is exercised against a real local server in the T3 suite.
+  # This stub pins only the dispatch gate and winning-signal globals.
+  fm_backend_t3code_thread_for_home() {
+    [ "$1" = "$FM_HOME" ] || fail 'T3 lookup must receive the active home'
+    printf thread
+  }
+  if fm_backend_detect; then fail 'T3 must not probe without its bearer'; fi
+  printf 'test-bearer\n' > "$FM_BACKEND_CONFIG_DIR/t3code-token"
+  fm_backend_detect >/dev/null || fail 'configured matching T3 must be detected'
+  [ "$FM_BACKEND_DETECTED:$FM_BACKEND_DETECT_SIGNAL" = t3code:T3-shell-cwd ] || fail 'T3 detection must report its source'
+  FM_BACKEND=orca
+  [ "$(fm_backend_name)" = orca ] || fail 'explicit Orca remains selectable ahead of T3'
+  pass 'backend auto-detection gates T3 by configuration and preserves explicit selection'
+)
+
 test_backend_detect_precedence() {
   local out
 
@@ -1143,6 +1194,8 @@ test_spawn_autodetect_nesting_resolves_tmux_silently() {
 }
 
 test_backend_name_precedence
+test_spawn_primitive_dispatch_preserves_adapter_arguments
+test_backend_detect_t3_configuration_gate
 test_backend_detect_precedence
 test_backend_detect_cmux_fallback_bundle_id
 test_backend_detect_cmux_fallback_requires_darwin
