@@ -11,7 +11,7 @@ T3 Code is explicit-only and runs only the `claude` and `codex` harnesses; every
 
 Prerequisites:
 
-- A running T3 Code server, version 0.0.41 or newer, whose `GET /.well-known/t3/environment` descriptor reports the `threadSettlement` capability.
+- A running T3 Code server, version 0.0.41-nightly.20260914.1707 or newer, whose `GET /.well-known/t3/environment` descriptor reports the `threadSettlement` capability.
 - `node`, which the adapter uses to speak HTTP, and `treehouse`.
 - The universal harness and toolchain requirements in [`configuration.md`](configuration.md#toolchain).
 
@@ -129,7 +129,7 @@ The branch can be left with `git switch main`.
 - While a tracked Codex overlay is installed, do not edit that file or clear its `skip-worktree` flag; configuration changes require cleanup first.
 - Ctrl-U is unsupported.
 - A Codex captain on this backend has no away mode: Codex has no tracked background tool for `start-native`, and `start` has no terminal to create.
-- The version floor ignores a prerelease tag, so the verified `0.0.41` nightly passes.
+- The version floor compares the full version, including the prerelease identifiers, against `0.0.41-nightly.20260914.1707`.
 
 ## Regression entry points
 

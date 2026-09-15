@@ -1492,6 +1492,23 @@ The portable classifier regression is `tests/fm-backend-cmux.test.sh`.
 
 ## T3 Code
 
+### Live lifecycle guard
+
+Verified on 2026-09-15 against T3 Code `0.0.41-nightly.20260914.1722`.
+The token-free guard checks the descriptor and strict version floor, project registration, thread creation and read, native state, capture, stop, and deletion of its own thread and project.
+It uses only a fresh temporary project and never starts a model turn unless `FM_T3CODE_PROMPT_LIVE=1` or `FM_LIVE=1` is set.
+Refresh with the configured Firstmate home:
+
+```sh
+FM_CONFIG_OVERRIDE=<home>/config bin/fm-test-run.sh tests/fm-backend-t3code-live-e2e.test.sh
+```
+
+```text
+ok - T3 Code 0.0.41-nightly.20260914.1722 live lifecycle and cleanup
+```
+
+### Initial adapter verification
+
 A live probe ran on 2026-09-14 against T3 Code 0.0.41-nightly.20260914.1707 over its HTTP orchestration API.
 Local paths and thread ids are intentionally not retained here.
 

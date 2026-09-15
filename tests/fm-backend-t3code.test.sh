@@ -320,7 +320,7 @@ test_version_floor_refuses_old_server() {
   out=$(t3_run 'fm_backend_t3code_runtime_check' 2>&1)
   status=$?
   [ "$status" -ne 0 ] || fail "runtime_check must refuse a server below 0.0.41"
-  assert_contains "$out" "requires a T3 server >= 0.0.41; this one reports 0.0.40" "the floor refusal must name both versions"
+  assert_contains "$out" "requires a T3 server >= 0.0.41-nightly.20260914.1707; this one reports 0.0.40" "the floor refusal must name both versions"
   t3_world_set 'w.descriptor.serverVersion = "0.0.41-nightly.20260914.1707"; w.descriptor.capabilities = {}'
   out=$(t3_run 'fm_backend_t3code_runtime_check' 2>&1)
   status=$?
@@ -329,6 +329,18 @@ test_version_floor_refuses_old_server() {
   t3_world_set 'w.descriptor.capabilities = { threadSettlement: true }'
   out=$(t3_run 'fm_backend_t3code_runtime_check' 2>&1) || fail "runtime_check must accept the verified nightly: $out"
   assert_contains "$(cat "$LOG")" '"path":"/api/orchestration/shell"' "runtime_check must prove authorization against the shell snapshot"
+  local version
+  for version in 0.0.41-nightly.20260914.1706 0.0.41-alpha 0.0.41-nightly.20260914 0.0.41-nightly.020260914.1707 garbage 0.0.41.1; do
+    t3_world_set "w.descriptor.serverVersion = '$version'"
+    if out=$(t3_run 'fm_backend_t3code_runtime_check' 2>&1); then
+      fail "runtime_check accepted $version below the strict floor"
+    fi
+    assert_contains "$out" "$version" "version refusal must name the installed version"
+  done
+  for version in 0.0.41-nightly.20260914.1707 0.0.41-nightly.20260914.1722 0.0.41-nightly.20260914.1707+build 0.0.41 0.0.42-alpha; do
+    t3_world_set "w.descriptor.serverVersion = '$version'"
+    out=$(t3_run 'fm_backend_t3code_runtime_check' 2>&1) || fail "runtime_check refused $version: $out"
+  done
   pass "fm_backend_t3code_runtime_check: version floor, capability, and authorization gates"
 }
 

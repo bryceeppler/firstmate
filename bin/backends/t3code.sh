@@ -22,7 +22,7 @@
 #                     codex=codex by default)
 # FM_T3CODE_ORIGIN overrides the origin read from ~/.t3/userdata/server-runtime.json.
 
-FM_BACKEND_T3CODE_MIN_VERSION=0.0.41
+FM_BACKEND_T3CODE_MIN_VERSION=0.0.41-nightly.20260914.1707
 
 fm_backend_t3code_config_dir() {
   printf '%s' "${FM_BACKEND_CONFIG_DIR:-${FM_CONFIG_OVERRIDE:-${FM_HOME:-.}/config}}"
@@ -134,17 +134,33 @@ fm_backend_t3code_runtime_check() {
   fm_backend_t3code_tool_check || return 1
   local descriptor
   descriptor=$(fm_backend_t3code_api GET /.well-known/t3/environment) || return 1
-  # The prerelease tag is ignored on purpose: the verified build is a
-  # 0.0.41 nightly, which strict semver would order below the floor.
   # shellcheck disable=SC2016  # Single quotes are deliberate: ${...} belongs to the Node snippet.
   printf '%s' "$descriptor" | node -e '
 const data = JSON.parse(require("fs").readFileSync(0, "utf8"));
 const min = process.argv[1];
 const version = String(data.serverVersion || "");
-const nums = (v) => v.split("-")[0].split(".").map((n) => parseInt(n, 10) || 0);
-const [have, want] = [nums(version), nums(min)];
-let ok = true;
-for (let i = 0; i < 3; i++) { if ((have[i] || 0) !== (want[i] || 0)) { ok = (have[i] || 0) > (want[i] || 0); break; } }
+const parse = (v) => {
+  const m = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(v);
+  if (!m) return null;
+  const pre = m[4] ? m[4].split(".") : [];
+  if (pre.some((id) => /^0[0-9]+$/.test(id))) return null;
+  return { core: m.slice(1, 4).map(BigInt), pre };
+};
+const compare = (a, b) => {
+  for (let i = 0; i < 3; i++) if (a.core[i] !== b.core[i]) return a.core[i] > b.core[i] ? 1 : -1;
+  if (!a.pre.length || !b.pre.length) return Number(!a.pre.length) - Number(!b.pre.length);
+  for (let i = 0; i < Math.max(a.pre.length, b.pre.length); i++) {
+    const x = a.pre[i], y = b.pre[i];
+    if (x === y) continue;
+    if (x === undefined || y === undefined) return x === undefined ? -1 : 1;
+    const xn = /^[0-9]+$/.test(x), yn = /^[0-9]+$/.test(y);
+    if (xn !== yn) return xn ? -1 : 1;
+    return (xn ? BigInt(x) > BigInt(y) : x > y) ? 1 : -1;
+  }
+  return 0;
+};
+const have = parse(version), want = parse(min);
+const ok = have && want && compare(have, want) >= 0;
 if (!ok) { console.error(`error: backend=t3code requires a T3 server >= ${min}; this one reports ${version || "no version"}; upgrade T3 Code`); process.exit(1); }
 if (!(data.capabilities && data.capabilities.threadSettlement === true)) { console.error(`error: backend=t3code requires the threadSettlement capability; T3 ${version} does not report it; upgrade T3 Code`); process.exit(1); }
 ' "$FM_BACKEND_T3CODE_MIN_VERSION" || return 1
