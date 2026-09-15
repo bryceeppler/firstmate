@@ -1516,9 +1516,26 @@ tests/fm-backend.test.sh
 tests/fm-daemon.test.sh
 ```
 
-The fake-server suite covers the token and version gates, project matching, the create and turn-start payloads, the effort option ids, capture rendering, key mapping, the status table, the stop-then-archive kill, the per-directory environment files, worker and secondmate spawn, the tracked codex config refusal, teardown ordering, the control plane's native exit and relaunch refusal, and the home thread lookup the away daemon uses; `tests/fm-daemon.test.sh` covers the daemon's t3code discovery precedence and busy verdict.
+The fake-server suite covers the token and version gates, project matching, the create and turn-start payloads, the effort option ids, capture rendering, key mapping, the status table, the stop-then-archive kill, the per-directory environment files, worker and secondmate spawn, tracked Codex config preservation and policy-conflict refusal, teardown ordering, the control plane's native exit and relaunch refusal, and the home thread lookup the away daemon uses; `tests/fm-daemon.test.sh` covers the daemon's t3code discovery precedence and busy verdict.
 The same suite drives the watcher with an expired stale timer and a static T3 transcript, checks active-run attribution through a real Git branch and HEAD, and preserves escalation for stopped, failed, starting, and inactive sessions without qualifying work.
 It also checks paused and captain-held status lookup through the recorded thread id.
+
+The tracked-configuration guard in the same suite passed on 2026-09-15 with `codex-cli 0.154.0` and Python 3.14.7.
+It starts an isolated Codex app server without a model turn, reads the merged project configuration through `config/read`, and runs `/usr/bin/printenv FM_TASK_ID` through `command/exec`.
+The project model survives, the command exits zero with the task id, ordinary staging and commits retain the original config blob, and teardown restores the original CRLF bytes and Git tracking.
+Run the guard explicitly with:
+
+```sh
+FM_T3_CODEX_CONFIG_LIVE=1 bin/fm-test-run.sh tests/fm-backend-t3code.test.sh
+```
+
+The live assertion prints:
+
+```text
+ok - codex-cli 0.154.0: project config retained; shell FM_TASK_ID=t3codextrk2
+```
+
+The guard runs by default when Codex is installed, capability-skips when absent, and fails on absence when explicitly requested.
 
 A live Firstmate smoke ran later the same day through the adapter itself, with `backend=t3code`, a `claude` scout at `claude-sonnet-5` and `low` effort, and a Treehouse-pooled project clone.
 `fm-spawn.sh` leased the slot, created the thread on it with the effort carried as a provider option, and started the brief as the first turn.

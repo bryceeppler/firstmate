@@ -2437,6 +2437,13 @@ remove_firstmate_home() {
   [ -e "$home" ] || return 0
   abs_home_path=$(validate_firstmate_home_for_removal "$home" "$label" "$expected_id") || return 1
   [ -n "$abs_home_path" ] || return 0
+  # A secondmate can carry the same tracked Codex overlay as a worker.
+  # Restore it after home validation and before returning its pooled Git index.
+  local codex_git_dir
+  codex_git_dir=$(git -C "$abs_home_path" rev-parse --absolute-git-dir 2>/dev/null || true)
+  if [ -n "$codex_git_dir" ] && [ -e "$codex_git_dir/fm-t3code-codex-env.json" ]; then
+    "$SCRIPT_DIR/fm-t3code-codex-env.sh" cleanup "$abs_home_path" || return 1
+  fi
   process_event_backup=$(snapshot_firstmate_home_process_events "$abs_home_path" "$label") || return 1
   if ! cleanup_firstmate_home_process_events "$abs_home_path" "$label"; then
     restore_firstmate_home_process_events "$abs_home_path" "$label" "$process_event_backup" || return $?
@@ -3012,7 +3019,10 @@ cleanup_firstmate_home_children() {
         rm -f "$child_wt/.claude/settings.local.json" "$child_wt/.opencode/plugins/fm-turn-end.js" \
           "$child_wt/.opencode/plugins/fm-busy-state.js" \
           "$child_wt/.fm-grok-turnend" "$child_wt/.fm-kimi-turnend"
-        [ "$child_backend" != t3code ] || rm -f "$child_wt/.codex/config.toml" "$child_wt/CLAUDE.local.md"
+        if [ "$child_backend" = t3code ]; then
+          "$SCRIPT_DIR/fm-t3code-codex-env.sh" cleanup "$child_wt" || return 1
+          rm -f "$child_wt/CLAUDE.local.md"
+        fi
         if [ -n "$child_proj" ] && [ -d "$child_proj" ] && command -v treehouse >/dev/null 2>&1; then
           if teardown_treehouse_return "$child_wt" "$child_proj" "child worktree"; then
             fm_treehouse_slot_owner_release "$child_wt" "$child_id"
@@ -3346,8 +3356,13 @@ elif [ -d "$WT" ] && [ "$KIND" != secondmate ]; then
   # signals for a dead task or hand a t3code env block or channel statement to
   # its next holder.
   rm -f "$WT/.claude/settings.local.json" "$WT/.opencode/plugins/fm-turn-end.js" \
-    "$WT/.codex/config.toml" "$WT/.fm-grok-turnend" "$WT/.fm-kimi-turnend"
-  [ "$BACKEND" != t3code ] || rm -f "$WT/CLAUDE.local.md"
+    "$WT/.fm-grok-turnend" "$WT/.fm-kimi-turnend"
+  if [ "$BACKEND" = t3code ]; then
+    "$SCRIPT_DIR/fm-t3code-codex-env.sh" cleanup "$WT" || exit 1
+    rm -f "$WT/CLAUDE.local.md"
+  else
+    rm -f "$WT/.codex/config.toml"
+  fi
   # Kills remaining processes in the worktree (including the agent), resets, returns
   # to pool. treehouse resolves the pool from the working directory, so run it from
   # the project. teardown_treehouse_return tolerates transient and stale git locks

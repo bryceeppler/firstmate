@@ -3065,13 +3065,10 @@ EOF
     T="$ORCA_TERMINAL"
     ;;
   t3code)
-    # The codex environment channel is the launch directory's .codex/config.toml
-    # (spawn_t3code_env_install), which must be Firstmate's to write and remove;
-    # a project that tracks that file keeps it. Refused here, before the first
-    # T3 or Treehouse mutation.
-    if [ "$HARNESS" = codex ] && git -C "$PROJ_ABS" ls-files --error-unmatch .codex/config.toml >/dev/null 2>&1; then
-      echo "error: $PROJ_ABS tracks .codex/config.toml, which backend=t3code writes as the codex environment channel; refusing to overwrite project configuration" >&2
-      exit 1
+    # Validate the project policy before the first T3 or Treehouse mutation;
+    # installation rechecks the actual leased worktree's configuration.
+    if [ "$HARNESS" = codex ]; then
+      "$SCRIPT_DIR/fm-t3code-codex-env.sh" check "$PROJ_ABS" || exit 1
     fi
     if [ "$HARNESS" = claude ] && [ "$KIND" != secondmate ] && git -C "$PROJ_ABS" ls-files --error-unmatch CLAUDE.local.md >/dev/null 2>&1; then
       echo "error: $PROJ_ABS tracks CLAUDE.local.md, which backend=t3code writes as the Claude task-worker channel statement; refusing to overwrite project instructions" >&2
@@ -3558,8 +3555,8 @@ exclude_path() {
 # hooks written above survive; the env block itself is replaced wholesale so a
 # respawn never inherits a stale value) and Codex's .codex/config.toml
 # `[shell_environment_policy] set` table (TOML basic strings). Both files are
-# git-excluded like every other per-task harness file; fm-teardown.sh removes
-# them with the hook files.
+# git-excluded when untracked; tracked Codex overlays are owned by
+# fm-t3code-codex-env.sh, including their Git protection and exact restoration.
 # spawn_t3code_claude_channel_install - the t3code carrier for the Claude
 # task-worker channel statement (spawn_claude_task_channel_statement). T3 owns
 # the system prompt, and its Claude sessions read the launch directory's
@@ -3590,6 +3587,10 @@ fs.writeFileSync(file, JSON.stringify(data) + "\n");
       exclude_path '.claude/settings.local.json'
       ;;
     codex)
+      if git -C "$WT" ls-files --error-unmatch .codex/config.toml >/dev/null 2>&1; then
+        "$SCRIPT_DIR/fm-t3code-codex-env.sh" install "$WT" "$@"
+        return $?
+      fi
       mkdir -p "$WT/.codex"
       # shellcheck disable=SC2016  # Single quotes are deliberate: ${...} belongs to the Node snippet.
       node -e '
