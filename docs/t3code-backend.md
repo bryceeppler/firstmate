@@ -36,6 +36,7 @@ A missing token or a 401 refuses with one error that names this mint command wit
 ### Provider instances and models
 
 `config/t3code-instances` maps a harness to a T3 provider instance id, one `harness=instanceId` line each; the defaults are `claude=claudeAgent` and `codex=codex`.
+The file is part of the primary's inherited local material, so every secondmate home receives the primary's mapping and its own T3 workers launch on the same provider instances; a home without the file falls back to those bare defaults, which need not name a configured account.
 A task's `--model` must be a slug in T3's model catalog; an unknown slug leaves the session in `error`.
 `--model default` uses the T3 project's default model selection and refuses when the project has none.
 `--effort` rides as a provider option, `effort` for claude (`low|medium|high|xhigh|max`) and `reasoningEffort` for codex (`low|medium|high|xhigh`); `default` sends no option, and a value outside a harness's set is refused.
