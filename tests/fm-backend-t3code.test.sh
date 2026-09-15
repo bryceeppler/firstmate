@@ -223,20 +223,57 @@ process.stdout.write(v === undefined ? "undefined" : typeof v === "string" ? v :
 ' "$1" "$2"
 }
 
-# The Codex harness reads .codex/config.toml with a TOML parser; this reads the
-# one shape firstmate writes ([shell_environment_policy] with an inline `set`
-# table of basic strings) and prints the requested key, or `undefined`.
+# Parse the emitted configuration as TOML, as Codex does.
 t3_toml_env() {  # <file> <NAME>
-  node -e '
-const text = require("fs").readFileSync(process.argv[1], "utf8");
-if (!/^\[shell_environment_policy\]\n/.test(text)) { console.error("missing [shell_environment_policy] header"); process.exit(1); }
-const m = text.match(/^set = \{ (.*) \}\n$/m);
-if (!m) { console.error("missing inline set table"); process.exit(1); }
-const env = {};
-for (const pair of m[1].matchAll(/([A-Za-z0-9_-]+) = ("(?:[^"\\]|\\.)*")/g)) env[pair[1]] = JSON.parse(pair[2]);
-process.stdout.write(process.argv[2] in env ? env[process.argv[2]] : "undefined");
-' "$1" "$2"
+  python3 - "$1" "$2" <<'PYTHON'
+import sys, tomllib
+with open(sys.argv[1], "rb") as stream:
+    env = tomllib.load(stream)["shell_environment_policy"]["set"]
+print(env.get(sys.argv[2], "undefined"), end="")
+PYTHON
 }
+
+# A token-free guard against changes in Codex's real project config loader and
+# shell environment. The subshell confines fm_live_gate's capability skip.
+t3_verify_live_codex_env() (  # <worktree> <task-id> <isolated-codex-home>
+  fm_live_gate default-on FM_T3_CODEX_CONFIG_LIVE codex python3
+  python3 - "$1" "$2" "$3" <<'PYTHON'
+import json, os, pathlib, selectors, subprocess, sys
+worktree, task, home = sys.argv[1:]
+home = pathlib.Path(home)
+home.mkdir()
+(home / "config.toml").write_text(f"[projects.{json.dumps(worktree)}]\ntrust_level = \"trusted\"\n")
+version = subprocess.check_output(["codex", "--version"], text=True).strip()
+with (home / "stderr.log").open("w") as errors:
+    server = subprocess.Popen(["codex", "app-server", "--stdio"], cwd=worktree,
+        env=dict(os.environ, CODEX_HOME=str(home)), stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE, stderr=errors, text=True)
+    try:
+        def request(number, method, params):
+            server.stdin.write(json.dumps(dict(id=number, method=method, params=params)) + "\n")
+            server.stdin.flush()
+            with selectors.DefaultSelector() as selector:
+                selector.register(server.stdout, selectors.EVENT_READ)
+                while selector.select(20):
+                    response = json.loads(server.stdout.readline())
+                    if response.get("id") == number:
+                        assert "error" not in response, (version, response)
+                        return response["result"]
+            raise TimeoutError(f"{version}: {method}")
+        request(1, "initialize", {"clientInfo": {"name": "fm-config-test", "version": "1"}})
+        result = request(2, "config/read", {"cwd": worktree, "includeLayers": True})
+        assert result["config"]["model"] == "gpt-5.6-sol", (version, result)
+        assert result["config"]["shell_environment_policy"]["set"]["FM_TASK_ID"] == task, version
+        result = request(3, "command/exec", {"cwd": worktree,
+            "command": ["/usr/bin/printenv", "FM_TASK_ID"], "timeoutMs": 10000,
+            "sandboxPolicy": {"type": "dangerFullAccess"}})
+        assert result == {"exitCode": 0, "stdout": task + "\n", "stderr": ""}, (version, result)
+        print(f"ok - {version}: project config retained; shell FM_TASK_ID={task}")
+    finally:
+        server.terminate()
+        server.wait(timeout=10)
+PYTHON
+)
 
 test_missing_token_names_mint_command() {
   local out status
@@ -714,11 +751,103 @@ test_spawn_codex_refuses_tracked_codex_config() {
     FM_PROJECTS_OVERRIDE="$CASE_DIR/unused-projects" FM_SPAWN_NO_GUARD=1 \
     "$ROOT/bin/fm-spawn.sh" "$id" "$proj" codex --scout --model gpt-5.6-sol --backend t3code 2>&1 ); rc=$?
   expect_code 1 "$rc" "a codex t3code spawn must refuse a project that tracks .codex/config.toml"$'\n'"$out"
-  assert_contains "$out" "tracks .codex/config.toml" "the refusal must name the tracked file"
+  assert_contains "$out" ".codex/config.toml" "the refusal must name the tracked file"
+  assert_contains "$out" "[shell_environment_policy]" "the refusal must name the policy table"
   [ -z "$(t3_dispatch_types)" ] || fail "the refusal must come before any T3 mutation, got '$(t3_dispatch_types)'"
   [ "$(t3_log_line_of 'r.tool === "treehouse"')" -eq 0 ] || fail "the refusal must come before the slot is leased"
   assert_absent "$state/$id.meta" "a refused spawn records nothing"
   pass "fm-spawn.sh --backend t3code codex: refuses to overwrite a project's tracked .codex/config.toml before any mutation"
+}
+
+test_spawn_codex_preserves_tracked_codex_config() {
+  local proj wt data state id out rc fb neutral original
+  id="t3codextrk2"
+  t3_case spawn-codex-tracked-compatible ready
+  proj="$CASE_DIR/spawn-project"; wt="$CASE_DIR/spawn-wt"; data="$CASE_DIR/data"; state="$CASE_DIR/state"
+  fm_git_worktree "$proj" "$wt" "fm/$id"
+  mkdir -p "$proj/.codex" "$data/$id" "$state" "$CASE_DIR/home/state"
+  original="$CASE_DIR/original.toml"
+  printf '# Project settings, preserved verbatim\r\nmodel = "gpt-5.6-sol"\r\n[features]\r\n# shell_environment_policy in a comment is harmless\r\nweb_search_request = true' > "$original"
+  cp "$original" "$proj/.codex/config.toml"
+  git -C "$proj" add .codex/config.toml
+  git -C "$proj" -c user.name=t -c user.email=t@example.invalid commit -qm "track codex config"
+  git -C "$proj" push -q origin main
+  git -C "$wt" merge --ff-only -q main
+  write_spawn_brief "$data" "$id"
+  touch "$state/.last-watcher-beat"
+  FM_T3_PROJ="$proj" t3_world_set 'w.shell.projects[0].workspaceRoot = process.env.FM_T3_PROJ'
+  fb=$(make_treehouse_fakebin "$CASE_DIR")
+  out=$( HOME="$SPAWN_HOME" PATH="$fb:$PATH" FM_T3_TREEHOUSE_LOG="$LOG" FM_T3_TREEHOUSE_WT="$wt" \
+    FM_T3CODE_ORIGIN="$ORIGIN" FM_ROOT_OVERRIDE="$ROOT" FM_HOME="$CASE_DIR/home" FM_STATE_OVERRIDE="$state" FM_DATA_OVERRIDE="$data" FM_CONFIG_OVERRIDE="$CONFIG" \
+    FM_PROJECTS_OVERRIDE="$CASE_DIR/unused-projects" FM_SPAWN_NO_GUARD=1 \
+    "$ROOT/bin/fm-spawn.sh" "$id" "$proj" codex --scout --model gpt-5.6-sol --backend t3code 2>&1 ); rc=$?
+  expect_code 0 "$rc" "a codex t3code spawn must accept compatible tracked configuration"$'\n'"$out"
+  [ "$(t3_toml_env "$wt/.codex/config.toml" FM_TASK_ID)" = "$id" ] || fail "tracked config must deliver FM_TASK_ID"
+  python3 - "$original" "$wt/.codex/config.toml" <<'CHECK'
+import pathlib, sys, tomllib
+original, installed = (pathlib.Path(p).read_bytes() for p in sys.argv[1:])
+assert installed.startswith(original), "project bytes must remain an unchanged prefix"
+assert tomllib.loads(installed.decode())["model"] == "gpt-5.6-sol"
+CHECK
+  expect_code 0 $? "merged config must be valid TOML and retain the project settings"
+  t3_verify_live_codex_env "$wt" "$id" "$CASE_DIR/codex-home" || fail "installed Codex failed the tracked configuration guard"
+  [ -z "$(git -C "$proj" status --porcelain -- .codex/config.toml)" ] || fail "the primary checkout must not inherit the overlay"
+  [ "$(git -C "$proj" ls-files -v -- .codex/config.toml)" = "H .codex/config.toml" ] || fail "skip-worktree must stay private to the leased worktree"
+  [ -z "$(git -C "$wt" status --porcelain -- .codex/config.toml)" ] || fail "the environment overlay must not appear as a tracked edit"
+  printf 'worker change\n' > "$wt/worker.txt"
+  git -C "$wt" add -A
+  git -C "$wt" -c user.name=t -c user.email=t@example.invalid commit -qam "worker change"
+  git -C "$wt" show HEAD:.codex/config.toml > "$CASE_DIR/committed.toml"
+  cmp -s "$original" "$CASE_DIR/committed.toml" || fail "git add -A and commit -a must not commit the environment overlay"
+  printf 'report\n' > "$data/$id/report.md"
+  printf 'decisions_reviewed=1\ndecision_keys=\n' >> "$state/$id.meta"
+  neutral=$(neutral_fm_root "$CASE_DIR/neutral")
+  out=$( HOME="$SPAWN_HOME" PATH="$fb:$PATH" FM_T3_TREEHOUSE_LOG="$LOG" FM_T3_TREEHOUSE_WT="$wt" FM_T3CODE_ORIGIN="$ORIGIN" \
+    FM_ROOT_OVERRIDE="$neutral" FM_HOME="$CASE_DIR/home" FM_STATE_OVERRIDE="$state" FM_DATA_OVERRIDE="$data" FM_CONFIG_OVERRIDE="$CONFIG" \
+    "$ROOT/bin/fm-teardown.sh" "$id" 2>&1 ); rc=$?
+  expect_code 0 "$rc" "teardown must restore the tracked config"$'\n'"$out"
+  cmp -s "$original" "$wt/.codex/config.toml" || fail "cleanup must restore the exact tracked bytes"
+  [ -z "$(git -C "$wt" status --porcelain -- .codex/config.toml)" ] || fail "cleanup must leave the tracked config clean"
+  "$ROOT/bin/fm-t3code-codex-env.sh" cleanup "$wt" || fail "repeated cleanup must succeed"
+  cmp -s "$original" "$wt/.codex/config.toml" || fail "repeated cleanup changed tracked bytes"
+  printf '\n# visible after cleanup\n' >> "$wt/.codex/config.toml"
+  [ -n "$(git -C "$wt" status --porcelain -- .codex/config.toml)" ] || fail "cleanup must restore ordinary Git tracking"
+  pass "fm-spawn.sh backend=t3code: compatible tracked Codex config launches, stays out of commits, and survives cleanup"
+}
+
+test_tracked_codex_overlay_recovery() {
+  local proj out rc original unicode_value
+  t3_case codex-overlay-recovery
+  proj="$CASE_DIR/project"
+  fm_git_init_commit "$proj"
+  mkdir "$proj/.codex"
+  original="$CASE_DIR/original.toml"
+  printf 'model = "gpt-5.6-sol"\n' > "$original"
+  cp "$original" "$proj/.codex/config.toml"
+  git -C "$proj" add .codex/config.toml
+  git -C "$proj" -c user.name=t -c user.email=t@example.invalid commit -qm config
+  unicode_value=$'space "quote" \\ path-🧭\nnext line'
+  "$ROOT/bin/fm-t3code-codex-env.sh" install "$proj" FM_TASK_ID=recovery "FM_HOME=$unicode_value" || fail "install recovery overlay"
+  [ "$(t3_toml_env "$proj/.codex/config.toml" FM_HOME)" = "$unicode_value" ] || fail "TOML encoding must preserve Unicode, quotes, backslashes, and newlines"
+  printf '\n# worker edit\n' >> "$proj/.codex/config.toml"
+  cp "$proj/.codex/config.toml" "$CASE_DIR/edited.toml"
+  out=$("$ROOT/bin/fm-t3code-codex-env.sh" cleanup "$proj" 2>&1); rc=$?
+  expect_code 1 "$rc" "cleanup must refuse unexpected configuration edits"
+  assert_contains "$out" "configuration changed" "cleanup must explain the conflict"
+  cmp -s "$CASE_DIR/edited.toml" "$proj/.codex/config.toml" || fail "refused cleanup must preserve edits"
+  # Simulate interruption after restoring the file but before restoring Git flags.
+  cp "$original" "$proj/.codex/config.toml"
+  "$ROOT/bin/fm-t3code-codex-env.sh" cleanup "$proj" || fail "interrupted restoration must converge"
+  [ "$(git -C "$proj" ls-files -v -- .codex/config.toml)" = "H .codex/config.toml" ] || fail "recovered cleanup must clear skip-worktree"
+  cmp -s "$original" "$proj/.codex/config.toml" || fail "recovery must preserve original bytes"
+  # TOML syntax, rather than textual spelling, determines policy ownership.
+  for policy in '["shell_environment_policy"]' 'shell_environment_policy.set.FOO = "bar"' 'shell_environment_policy = { set = { FOO = "bar" } }'; do
+    printf '%s\n' "$policy" > "$proj/.codex/config.toml"
+    out=$("$ROOT/bin/fm-t3code-codex-env.sh" check "$proj" 2>&1); rc=$?
+    expect_code 1 "$rc" "every TOML spelling of a project policy must refuse"
+    assert_contains "$out" "[shell_environment_policy]" "policy conflict must name the table"
+  done
+  pass "tracked Codex overlay: edited files survive refusal, interrupted restoration recovers, quoted and dotted policy keys refuse"
 }
 
 test_spawn_claude_refuses_tracked_claude_local_md() {
@@ -1021,11 +1150,20 @@ test_scout_teardown_stops_and_archives_before_slot_return() {
 }
 
 test_secondmate_teardown_archives_thread_before_home_removal_without_project_delete() {
-  local home data state config id out rc thread=4e0f2a6b-9d3c-4b5e-af4f-0123456789cd archive_line
-  id="t3smtdz1"
-  t3_case teardown-secondmate running
+  local home data state config id out rc thread=4e0f2a6b-9d3c-4b5e-af4f-0123456789cd archive_line harness=${1:-claude} journal=
+  id="t3smtdz1-$harness"
+  t3_case "teardown-secondmate-$harness" running
   t3_world "$(t3_thread_json "$thread" running null)"
   home="$CASE_DIR/sm-home"; data="$CASE_DIR/data"; state="$CASE_DIR/state"; config="$CONFIG"
+  if [ "$harness" = codex ]; then
+    fm_git_worktree "$CASE_DIR/home-project" "$home" "fm/$id"
+    mkdir "$home/.codex"
+    printf 'model = "gpt-5.6-sol"\n' > "$home/.codex/config.toml"
+    git -C "$home" add .codex/config.toml
+    git -C "$home" -c user.name=t -c user.email=t@example.invalid commit -qm config
+    "$ROOT/bin/fm-t3code-codex-env.sh" install "$home" "FM_HOME=$home" || fail "install secondmate overlay"
+    journal=$(git -C "$home" rev-parse --git-path fm-t3code-codex-env.json)
+  fi
   mkdir -p "$data" "$state" "$home/state" "$home/data" "$home/config" "$home/projects" "$home/bin" "$home/.claude"
   printf '%s\n' "$id" > "$home/.fm-secondmate-home"
   printf '# Firstmate\n' > "$home/AGENTS.md"
@@ -1033,7 +1171,7 @@ test_secondmate_teardown_archives_thread_before_home_removal_without_project_del
   touch "$state/.last-watcher-beat"
   fm_write_meta "$state/$id.meta" \
     "window=fm-$id" "endpoint_task_id=$id" "worktree=$home" "project=$home" \
-    "harness=claude" "kind=secondmate" "mode=secondmate" "yolo=off" \
+    "harness=$harness" "kind=secondmate" "mode=secondmate" "yolo=off" \
     "backend=t3code" "t3_thread_id=$thread" "t3_project_id=proj-sm" "home=$home"
   FM_T3_HOME="$home" t3_world_set 'w.probePath = process.env.FM_T3_HOME'
   out=$( FM_T3CODE_ORIGIN="$ORIGIN" FM_ROOT_OVERRIDE="$ROOT" FM_HOME="$CASE_DIR/home" \
@@ -1045,6 +1183,7 @@ test_secondmate_teardown_archives_thread_before_home_removal_without_project_del
   archive_line=$(t3_log_line_of 'r.body && r.body.type === "thread.archive"')
   [ "$(t3_request "$archive_line" 'r.probe')" = true ] || fail "the thread must be archived while the home still exists"
   assert_absent "$home" "teardown should remove the secondmate home"
+  [ -z "$journal" ] || assert_absent "$journal" "secondmate cleanup must retire its tracked Codex overlay before removing the home"
   assert_absent "$state/$id.meta" "teardown should remove task metadata"
   pass "fm-teardown.sh backend=t3code secondmate: stops and archives before the home is removed, leaves the T3 project"
 }
@@ -1104,6 +1243,8 @@ test_control_lib_tables
 test_control_exit_stops_session_natively
 test_control_relaunch_refused_before_any_dispatch
 test_spawn_leases_slot_creates_thread_and_starts_launch_turn
+test_spawn_codex_preserves_tracked_codex_config
+test_tracked_codex_overlay_recovery
 test_spawn_codex_refuses_tracked_codex_config
 test_spawn_claude_refuses_tracked_claude_local_md
 test_spawn_codex_scout_writes_toml_env_with_traceparent
@@ -1112,4 +1253,5 @@ test_spawn_codex_secondmate_writes_toml_env
 test_spawn_refuses_t3code_when_token_rejected
 test_scout_teardown_stops_and_archives_before_slot_return
 test_secondmate_teardown_archives_thread_before_home_removal_without_project_delete
+test_secondmate_teardown_archives_thread_before_home_removal_without_project_delete codex
 test_teardown_refuses_when_t3_is_unreachable

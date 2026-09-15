@@ -860,6 +860,12 @@ test_reassigned_pool_slot_finishes_own_cleanup_without_touching_the_slot() {
   # never the other task's live work.
   dir=$(make_case slot-reassigned)
   mark_case_as_treehouse_pool "$dir"
+  mkdir -p "$dir/worktree/.codex"
+  printf 'model = "gpt-5.6-sol"\n' > "$dir/worktree/.codex/config.toml"
+  git -C "$dir/worktree" add .codex/config.toml
+  git -C "$dir/worktree" -c user.name=t -c user.email=t@example.invalid commit -qm "project Codex config"
+  "$ROOT/bin/fm-t3code-codex-env.sh" install "$dir/worktree" "FM_TASK_ID=$other" || fail "install reassigned task's overlay"
+  cp "$dir/worktree/.codex/config.toml" "$dir/other-overlay.toml"
   fm_write_meta "$dir/home/state/$id.meta" \
     "window=firstmate:fm-$id" "endpoint_task_id=$id" \
     "worktree=$dir/worktree" "project=$dir/project" "kind=scout"
@@ -878,6 +884,8 @@ test_reassigned_pool_slot_finishes_own_cleanup_without_touching_the_slot() {
   [ "$rc" -eq 0 ] || fail "teardown of a task whose slot was reassigned failed: $(cat "$dir/stderr")"
   kill -0 "$worker" 2>/dev/null || fail "teardown killed the worker holding the reassigned pool slot"
   assert_present "$dir/worktree/sentinel" "teardown reset a pool slot another task had claimed"
+  cmp -s "$dir/other-overlay.toml" "$dir/worktree/.codex/config.toml" || fail "teardown changed the other task's Codex overlay"
+  [ "$(git -C "$dir/worktree" ls-files -v -- .codex/config.toml)" = "S .codex/config.toml" ] || fail "teardown cleared the other task's overlay protection"
   assert_reassigned_slot_left_alone "$dir" "$id" "$other" "dirty reassigned slot with --force"
   assert_contains "$(cat "$dir/stderr")" "$dir/other-home" \
     "the warning should name the claimant's home"

@@ -64,13 +64,18 @@ A secondmate record carries the ordinary `home=` and `projects=` lines as on eve
 T3 sets environment variables per provider instance, never per thread, so nothing can be typed into a pane before launch.
 Each harness reads its own configuration from the thread's working directory instead, and Firstmate writes the facts a pane would have exported into that directory before the launch turn.
 For `claude` that is an `env` block in the directory's `.claude/settings.local.json`, merged alongside the busy hooks a worker already carries there; for `codex` it is a `.codex/config.toml` holding a `[shell_environment_policy]` `set` table.
-Both files are git-excluded and removed at teardown.
+Untracked environment files are git-excluded and removed at teardown.
+For a tracked `.codex/config.toml`, Firstmate preserves the project bytes and appends its policy only if the file does not already define `shell_environment_policy`, including through dotted or quoted keys.
+`bin/fm-t3code-codex-env.sh` owns the tracked overlay, its private worktree Git journal, and its `skip-worktree` protection against ordinary staging and commits.
+Teardown restores the original bytes and prior Git flag before returning the slot; unexpected file or index edits refuse cleanup and retain the journal for recovery.
+The tracked path requires Python 3.11 or newer for TOML parsing.
+Codex's [configuration layers](https://learn.chatgpt.com/docs/config-file/config-basic#configuration-precedence) provide no separate per-directory fragment for a thread launched at the repository root, and T3 cannot select a different CLI override or profile per thread.
 Every kind receives `GOTMPDIR`; ship and scout workers also receive `FM_TASK_ID`; `TRACEPARENT` rides only when trace context is on, and only once its `traceparent=` line is recorded.
 A secondmate additionally receives the launch prefix every other backend types (`FM_ROOT_OVERRIDE`, `FM_STATE_OVERRIDE`, `FM_DATA_OVERRIDE`, `FM_PROJECTS_OVERRIDE`, and `FM_CONFIG_OVERRIDE` empty, `FM_PUBLIC_FOLLOWUP_PRIMARY_HOME`, `FM_HOME`, `FM_TRACE_CONTEXT`, `FM_SUPERVISION_MODEL`) plus `FM_SUPERVISOR_BACKEND=t3code` and its own thread id as `FM_SUPERVISOR_TARGET`, so its away daemon resolves its target exactly.
 A `claude` ship or scout worker also receives the task-worker channel statement that a pane launch appends to the system prompt, written as a `CLAUDE.local.md` in its worktree because T3 owns the system prompt; a secondmate does not, as on every backend.
 Without it a Claude worker can refuse the launch brief as prompt injection, which happened live.
 The statement also tells the worker not to call T3's `link_pull_request`, `list_thread_pull_requests`, or `unlink_pull_request` tools even when host instructions request it, because those calls crash Claude's session and Firstmate already records the PR from the worker's `done: PR <url>` status line.
-A `claude` task refuses a project that tracks `CLAUDE.local.md`, and a `codex` task one that tracks `.codex/config.toml`, because those files are the backend's channels and teardown removes them.
+A `claude` task refuses a project that tracks `CLAUDE.local.md`, because that file is the backend's channel and teardown removes it.
 
 ## Current lifecycle and safety
 
@@ -120,6 +125,8 @@ The branch can be left with `git switch main`.
 
 - T3 Code is explicit-only and experimental, and runs only `claude` and `codex`.
 - `fm-control.sh relaunch` is refused: a T3 thread is bound to its driver, and a turn on a stopped thread continues the same agent rather than launching a replacement.
+- A tracked `.codex/config.toml` that already defines `[shell_environment_policy]` is refused by file and table name before a slot is leased.
+- While a tracked Codex overlay is installed, do not edit that file or clear its `skip-worktree` flag; configuration changes require cleanup first.
 - Ctrl-U is unsupported.
 - A Codex captain on this backend has no away mode: Codex has no tracked background tool for `start-native`, and `start` has no terminal to create.
 - The version floor ignores a prerelease tag, so the verified `0.0.41` nightly passes.
