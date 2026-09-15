@@ -63,6 +63,9 @@
 #                          for human inspection only - never an automatic
 #                          interrupt, signal, or restart of the worker or its
 #                          tool process.
+#                          At escalation time, a T3 session still running or an
+#                          attributed running/fixing validation resets the timer;
+#                          t3code_stale_is_working owns that fresh evidence check.
 #   stale: <window> (unread firstmate instruction: ...)
 #                          the steering-inbox ladder spent its delivery-attempt
 #                          budget on an idle pane without an acknowledgement
@@ -916,8 +919,9 @@ clear_write_tracking() {  # <window-key>
 # Repeat-poll wedge-timer bookkeeping for an already-classified stale hash
 # absorbed as provably-working - repairs a missing/corrupt timer (self-heals a
 # watcher restart between recording the hash and recording the timer), or
-# escalates once STALE_ESCALATE_SECS have elapsed. Never re-reads the crew
-# state (the costly check already ran once, at classification time). Shared by
+# escalates once STALE_ESCALATE_SECS have elapsed. At that threshold only,
+# T3 work gets a fresh session/run read: its transcript can remain unchanged
+# throughout a long command. Other backends retain the initial verdict. Shared by
 # both places a hash can be absorbed this way: the plain non-terminal path,
 # and the stale_is_terminal-overridden path (a captain-relevant status-log
 # line that an active run/busy pane outranked).
@@ -938,6 +942,13 @@ wedge_timer_check() {  # <window> <since-file> <triage-label> <escalation-count-
     *)
       age=$(( $(date +%s) - since ))
       if [ "$age" -ge "$STALE_ESCALATE_SECS" ]; then
+        if t3code_stale_is_working "$win" "$task"; then
+          rm -f "$escalation_file"
+          clear_write_tracking "$(window_key "$win")"
+          date +%s > "$since_file"
+          triage_log "absorbed $label (T3 session or run still active), timer reset: $win"
+          return 0
+        fi
         if crew_worktree_written_since "$task" "$STATE" "$since_file"; then
           wedge_defer_writing "$win" "$since_file" "$label" "$age"
           return 0
@@ -955,6 +966,25 @@ wedge_timer_check() {  # <window> <since-file> <triage-label> <escalation-count-
       fi
       ;;
   esac
+}
+
+# T3 has no terminal progress during a long command. Reuse its native session
+# probe and the attributed run reader before escalating a quiet transcript.
+# A stopped or failed session cannot be excused by a leftover pipeline record.
+t3code_stale_is_working() {  # <window> <task>
+  local win=$1 task=$2 line
+  [ "$(window_backend "$win")" = t3code ] || return 1
+  fm_backend_source t3code || return 1
+  case "$(fm_backend_t3code_probe "$win")" in
+    running) return 0 ;;
+    stopped|error|archived|http-404) return 1 ;;
+  esac
+  line=$("$FM_CREW_STATE_BIN" "$task" 2>/dev/null) || return 1
+  case "$line" in
+    'state: working · source: run-step · validating (running)'*|\
+    'state: working · source: run-step · validating (fixing)'*) return 0 ;;
+  esac
+  return 1
 }
 
 # busy_turn_over_age: 0 iff the last completed turn or explicit native-harness

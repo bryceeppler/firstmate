@@ -69,7 +69,12 @@ JS
 printf '%s' "$TMP_ROOT" > "$SERVER_DIR/case"
 node "$SERVER_DIR/t3-fake.js" "$SERVER_DIR" &
 SERVER_PID=$!
+WATCH_PID=
 cleanup() {
+  if [ -n "$WATCH_PID" ]; then
+    kill "$WATCH_PID" 2>/dev/null || true
+    wait "$WATCH_PID" 2>/dev/null || true
+  fi
   kill "$SERVER_PID" 2>/dev/null || true
   fm_test_cleanup
 }
@@ -520,6 +525,101 @@ test_busy_classify_trusts_native_idle_and_busy() {
   out=$(FM_T3CODE_ORIGIN="$ORIGIN" FM_CONFIG_OVERRIDE="$CONFIG" bash -c '. "$0/bin/fm-backend.sh"; . "$0/bin/fm-busy-lib.sh"; fm_busy_classify t3code thread-live claude "$1" "$2"' "$ROOT" "$id" "$state")
   [ "$out" = "unknown missing" ] || fail "an error session must fall through to unknown missing, got '$out'"
   pass "fm_busy_classify: t3code native busy and idle are both trusted without a record"
+}
+
+test_stale_classifier_resolves_t3_thread() {
+  local state out declaration
+  t3_case stale-task-mapping ready
+  state="$CASE_DIR/state"; mkdir -p "$state"
+  fm_write_meta "$state/worker.meta" "window=fm-worker" "backend=t3code" "t3_thread_id=thread-live"
+  for declaration in 'paused: waiting for upstream release' 'captain-held: awaiting captain review'; do
+    printf '%s\n' "$declaration" > "$state/worker.status"
+    out=$(t3_run '. "$0/bin/fm-supervise-daemon.sh"; classify_stale thread-live "$1"' "$state")
+    assert_contains "$out" "pause|" "a T3 thread must resolve its task's declared wait"
+    assert_contains "$out" "$declaration" "stale classification must read the task status"
+  done
+  pass "T3 stale lookup honors paused and captain-held declarations"
+}
+
+# Drive the real watcher with an unchanged transcript and an expired wedge
+# timer. The pipeline fixture binds to a real repository's branch and HEAD,
+# so fm-crew-state.sh performs its ordinary run attribution.
+test_t3_stale_watcher() {  # <session-status> <run-status|none> <absorb|surface> [harness]
+  local session=$1 run=$2 expected=$3 harness=${4:-codex} state fb hash out i verdict
+  local thread=6a0e1f2b-3c4d-4a5b-8c6d-0123456789ab
+  t3_case "watch-$session-$run-$harness" "$session"
+  t3_world "$(t3_thread_json "$thread" "$session" null)"
+  if [ "$session" = running ]; then
+    t3_world_set 'Object.values(w.threads)[0].latestTurn.state = "running"'
+  fi
+  state="$CASE_DIR/state"; fb="$CASE_DIR/fakebin"; out="$CASE_DIR/watch.out"
+  mkdir -p "$state" "$fb" "$CASE_DIR/data"
+  fm_git_init_commit "$REPO"
+  git -C "$REPO" checkout -qb fm/worker
+  fm_write_meta "$state/worker.meta" "window=fm-worker" "backend=t3code" \
+    "t3_thread_id=$thread" "worktree=$REPO" "project=$REPO" "harness=$harness" "kind=ship"
+  touch -t 200001010000 "$state/worker.meta"
+  : > "$CASE_DIR/run.toon"
+  if [ "$run" != none ]; then
+    cat > "$CASE_DIR/run.toon" <<EOF
+run:
+  id: "01RUN"
+  branch: fm/worker
+  status: $run
+  head: "$(git -C "$REPO" rev-parse HEAD)"
+  pr: ""
+  findings: none
+  steps[2]{step,status,findings,duration_ms}:
+    intent,completed,0,0
+    review,$run,0,0
+EOF
+  fi
+  cat > "$fb/no-mistakes" <<'SH'
+#!/usr/bin/env bash
+case "$*" in
+  'axi status'*) cat "$FM_T3_TEST_RUN" ;;
+  'daemon status') printf 'daemon running (pid 4242)\n' ;;
+esac
+SH
+  chmod +x "$fb/no-mistakes"
+  verdict=$(PATH="$fb:$PATH" FM_T3_TEST_RUN="$CASE_DIR/run.toon" FM_T3CODE_ORIGIN="$ORIGIN" \
+    FM_CONFIG_OVERRIDE="$CONFIG" FM_HOME="$CASE_DIR" FM_STATE_OVERRIDE="$state" \
+    "$ROOT/bin/fm-crew-state.sh" worker)
+  if [ "$run" = running ] || [ "$run" = fixing ]; then
+    assert_contains "$verdict" "source: run-step" "the fixture run must be attributed to this worker"
+    assert_contains "$verdict" "validating ($run)" "the actual crew reader must confirm the active run"
+  fi
+  hash=$(t3_run 'fm_backend_capture t3code "$1" 40' "$thread")
+  hash=$(printf '%s' "$hash" | { if command -v md5 >/dev/null 2>&1; then md5 -q; else md5sum | cut -d' ' -f1; fi; })
+  printf '%s' "$hash" > "$state/.hash-$thread"
+  printf '%s' "$hash" > "$state/.stale-$thread"
+  printf '3\n' > "$state/.count-$thread"
+  printf '1\n' > "$state/.stale-since-$thread"
+  printf '3\n' > "$state/.wedge-escalations-$thread"
+  PATH="$fb:$PATH" FM_T3_TEST_RUN="$CASE_DIR/run.toon" FM_T3CODE_ORIGIN="$ORIGIN" \
+    FM_CONFIG_OVERRIDE="$CONFIG" FM_HOME="$CASE_DIR" FM_STATE_OVERRIDE="$state" FM_DATA_OVERRIDE="$CASE_DIR/data" \
+    FM_POLL=1 FM_CHECK_INTERVAL=999999 FM_HEARTBEAT=999999 FM_BUSY_TURN_MAX_SECS=1 \
+    FM_STALE_ESCALATE_SECS=1 FM_WEDGE_DEMAND_INSPECT_COUNT=3 \
+    "$ROOT/bin/fm-watch.sh" > "$out" 2>&1 &
+  WATCH_PID=$!
+  for i in $(seq 1 600); do
+    kill -0 "$WATCH_PID" 2>/dev/null || break
+    if [ "$expected" = absorb ] && [ "$(cat "$state/.stale-since-$thread" 2>/dev/null)" != 1 ] \
+        && [ -s "$state/.stale-since-$thread" ]; then break; fi
+    sleep 0.1
+  done
+  if [ "$expected" = absorb ]; then
+    kill -0 "$WATCH_PID" 2>/dev/null || fail "active T3 work woke firstmate: $(cat "$out")"
+    [ "$(cat "$state/.stale-since-$thread" 2>/dev/null)" != 1 ] || fail "watcher never reset the expired timer"
+    assert_absent "$state/.wedge-escalations-$thread" "positive work evidence must clear the escalation count"
+    assert_absent "$state/.wake-queue" "active T3 work must not queue a wake"
+    kill "$WATCH_PID" 2>/dev/null || true
+  else
+    assert_contains "$(cat "$out")" 'demand-deep-inspection' "a T3 session without active work must still escalate"
+  fi
+  wait "$WATCH_PID" 2>/dev/null || true
+  WATCH_PID=
+  pass "T3 stale watcher: harness=$harness session=$session run=$run -> $expected"
 }
 
 test_control_lib_tables() {
@@ -974,6 +1074,15 @@ test_teardown_refuses_when_t3_is_unreachable() {
   pass "fm-teardown.sh backend=t3code: refuses to return a slot a live thread still points at"
 }
 
+test_stale_classifier_resolves_t3_thread
+test_t3_stale_watcher running none absorb
+test_t3_stale_watcher running none absorb claude
+test_t3_stale_watcher ready running absorb
+test_t3_stale_watcher ready fixing absorb
+test_t3_stale_watcher stopped running surface
+test_t3_stale_watcher error fixing surface
+test_t3_stale_watcher starting none surface
+test_t3_stale_watcher ready none surface
 test_missing_token_names_mint_command
 test_rejected_token_names_mint_command
 test_missing_origin_names_runtime_file
