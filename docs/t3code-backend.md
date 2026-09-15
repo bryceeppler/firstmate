@@ -87,6 +87,7 @@ The control plane ([`agent-control.md`](agent-control.md)) reads the same status
 `relaunch` is refused before anything is stopped: a T3 thread is bound to the driver that first ran it, and a turn on a stopped thread continues the same agent, so no replacement agent can be launched into the endpoint.
 
 The watcher and `fm-crew-state.sh` read the server's own session status through one table in the adapter, and both native verdicts are trusted ahead of every harness gate and hook record (source `t3code-native`), so a codex crew settles from T3's status even though codex has no verified hook writer; only an unreadable server falls through to the ordinary contract.
+Before escalating an unchanged transcript, the watcher rechecks for active T3 work; `t3code_stale_is_working` in `bin/fm-watch.sh` owns the session and attributed-validation evidence that resets its stale timer.
 T3 launches Claude with the `user,project,local` setting sources, so the worktree `.claude/settings.local.json` busy hooks fire as on every other backend.
 T3 starts every agent with the T3 server's own environment, not a login shell's.
 Codex runs each command through `/bin/zsh -lc` in that environment, so the Firstmate toolchain must survive the login shell's startup files, and a startup file that rebuilds `PATH` when a marker variable is missing hides it from every Codex worker; Claude's shell tool restores its own login-shell snapshot and is unaffected.

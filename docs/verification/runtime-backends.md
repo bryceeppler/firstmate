@@ -1517,6 +1517,8 @@ tests/fm-daemon.test.sh
 ```
 
 The fake-server suite covers the token and version gates, project matching, the create and turn-start payloads, the effort option ids, capture rendering, key mapping, the status table, the stop-then-archive kill, the per-directory environment files, worker and secondmate spawn, the tracked codex config refusal, teardown ordering, the control plane's native exit and relaunch refusal, and the home thread lookup the away daemon uses; `tests/fm-daemon.test.sh` covers the daemon's t3code discovery precedence and busy verdict.
+The same suite drives the watcher with an expired stale timer and a static T3 transcript, checks active-run attribution through a real Git branch and HEAD, and preserves escalation for stopped, failed, starting, and inactive sessions without qualifying work.
+It also checks paused and captain-held status lookup through the recorded thread id.
 
 A live Firstmate smoke ran later the same day through the adapter itself, with `backend=t3code`, a `claude` scout at `claude-sonnet-5` and `low` effort, and a Treehouse-pooled project clone.
 `fm-spawn.sh` leased the slot, created the thread on it with the effort carried as a provider option, and started the brief as the first turn.
