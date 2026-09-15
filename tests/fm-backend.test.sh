@@ -203,6 +203,33 @@ test_backend_name_precedence() {
 # cmux fallback inputs (__CFBundleIdentifier plus a non-Darwin uname fake) -
 # so results never depend on the ambient shell this suite runs inside (a real
 # tmux pane or cmux tab, both normal cases for a captain's session).
+test_spawn_primitive_dispatch_preserves_adapter_arguments() (
+  local backend op expected actual adapter_op
+  for backend in tmux herdr zellij cmux orca; do
+    fm_backend_source "$backend" || fail "cannot load $backend adapter"
+    for op in create_task container_ensure send_literal send_text_line; do
+      [ "$backend:$op" != orca:container_ensure ] || continue
+      adapter_op=$op
+      [ "$backend:$op" != orca:create_task ] || adapter_op=terminal_create
+      # Replace only the adapter endpoint with an argv recorder. No backend
+      # CLI or lifecycle command runs in this dispatcher-conformance test.
+      eval "fm_backend_${backend}_${adapter_op}"'() { printf "<%s>" "$@"; }'
+      case "$op:$backend" in
+        send_literal:tmux|send_literal:herdr|send_literal:orca|send_text_line:tmux|send_text_line:herdr|send_text_line:orca)
+          expected='<target with spaces><text with spaces>' ;;
+        *) expected='<target with spaces><text with spaces><label>' ;;
+      esac
+      actual=$("fm_backend_$op" "$backend" 'target with spaces' 'text with spaces' label)
+      [ "$actual" = "$expected" ] || fail "$backend $op changed arguments: $actual"
+    done
+    eval "fm_backend_${backend}_send_key"'() { printf "<%s>" "$@"; }'
+    expected='<target><Enter>'
+    case "$backend" in zellij|cmux) expected="$expected<label>" ;; esac
+    [ "$(fm_backend_type_key "$backend" target Enter label)" = "$expected" ] || fail "$backend typing-key arguments changed"
+  done
+  pass 'shared spawn dispatch preserves arguments for every existing pane backend'
+)
+
 test_backend_detect_t3_configuration_gate() (
   FM_BACKEND_CONFIG_DIR="$TMP_ROOT/t3-detect-config"
   mkdir -p "$FM_BACKEND_CONFIG_DIR"
@@ -1167,6 +1194,7 @@ test_spawn_autodetect_nesting_resolves_tmux_silently() {
 }
 
 test_backend_name_precedence
+test_spawn_primitive_dispatch_preserves_adapter_arguments
 test_backend_detect_t3_configuration_gate
 test_backend_detect_precedence
 test_backend_detect_cmux_fallback_bundle_id

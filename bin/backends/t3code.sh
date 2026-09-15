@@ -522,3 +522,31 @@ fm_backend_t3code_wait_transition() {  # <session> <timeout> <state-dir> <thread
   [ "$rc" -ne 2 ] && [ "$reader_rc" -eq 0 ] && return 1
   return 2
 }
+
+# Shared spawn operations retain the T3 payload helpers' argument order.
+fm_backend_t3code_container_ensure() {  # <project-path> -> project id
+  fm_backend_t3code_project_ensure "$@"
+}
+
+fm_backend_t3code_create_task() {  # <project-id> <title> <branch> <worktree> <model-selection-json>
+  fm_backend_t3code_thread_create "$@"
+}
+
+fm_backend_t3code_target_ready() {  # <thread-id>
+  fm_backend_t3code_target_exists "$1"
+}
+
+fm_backend_t3code_validate_harness() {  # <harness>
+  case "$1" in
+    claude|codex) return 0 ;;
+    *) echo "error: backend=t3code runs only the claude and codex harnesses, not '$1'" >&2; return 1 ;;
+  esac
+}
+
+fm_backend_t3code_send_literal() {
+  echo "error: backend=t3code has no pane to type into" >&2
+  return 1
+}
+
+fm_backend_t3code_send_text_line() { fm_backend_t3code_send_literal "$@"; }
+fm_backend_t3code_type_key() { fm_backend_t3code_send_literal "$@"; }

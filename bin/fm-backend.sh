@@ -1082,3 +1082,106 @@ fm_backend_event_session() {  # <backend> <target>
 fm_backend_transition_target() {  # <backend> <session> <endpoint-id>
   case "$1" in t3code) printf '%s' "$3" ;; *) printf '%s:%s' "$2" "$3" ;; esac
 }
+
+# Early spawn checks for API-owned sessions. Other backends keep their
+# existing admission checks in container_ensure at endpoint provisioning.
+fm_backend_runtime_check() {  # <backend>
+  fm_backend_source "$1" || return 1
+  case "$1" in
+    orca) fm_backend_orca_runtime_check ;;
+    t3code) fm_backend_t3code_runtime_check ;;
+    *) return 0 ;;
+  esac
+}
+
+fm_backend_validate_harness() {  # <backend> <harness>
+  fm_backend_source "$1" || return 1
+  case "$1" in
+    t3code) fm_backend_t3code_validate_harness "$2" ;;
+    *) return 0 ;;
+  esac
+}
+
+# Container/create args and returned ids follow each adapter's documented
+# protocol. Dispatch preserves them, including Herdr's seeded-tab result.
+fm_backend_container_ensure() {  # <backend> [adapter args...]
+  local backend=$1
+  shift
+  fm_backend_source "$backend" || return 1
+  case "$backend" in
+    tmux) fm_backend_tmux_container_ensure "$@" ;;
+    herdr) fm_backend_herdr_container_ensure "$@" ;;
+    zellij) fm_backend_zellij_container_ensure "$@" ;;
+    cmux) fm_backend_cmux_container_ensure "$@" ;;
+    t3code) fm_backend_t3code_container_ensure "$@" ;;
+    *) echo "error: no container-ensure implementation for backend '$backend'" >&2; return 1 ;;
+  esac
+}
+
+fm_backend_create_task() {  # <backend> <adapter args...>
+  local backend=$1
+  shift
+  fm_backend_source "$backend" || return 1
+  case "$backend" in
+    tmux) fm_backend_tmux_create_task "$@" ;;
+    herdr) fm_backend_herdr_create_task "$@" ;;
+    zellij) fm_backend_zellij_create_task "$@" ;;
+    cmux) fm_backend_cmux_create_task "$@" ;;
+    orca) fm_backend_orca_terminal_create "$@" ;;
+    t3code) fm_backend_t3code_create_task "$@" ;;
+  esac
+}
+
+fm_backend_target_ready() {  # <backend> <target> [expected-label]
+  local backend=$1
+  shift
+  fm_backend_source "$backend" || return 1
+  case "$backend" in
+    herdr) fm_backend_herdr_target_ready "$1" ;;
+    zellij) fm_backend_zellij_target_ready "$@" ;;
+    cmux) fm_backend_cmux_target_ready "$@" ;;
+    t3code) fm_backend_t3code_target_ready "$1" ;;
+    *) fm_backend_target_exists "$backend" "$@" ;;
+  esac
+}
+
+fm_backend_send_text_line() {  # <backend> <target> <text> [expected-label]
+  local backend=$1
+  shift
+  fm_backend_source "$backend" || return 1
+  case "$backend" in
+    tmux) fm_backend_tmux_send_text_line "$1" "$2" ;;
+    herdr) fm_backend_herdr_send_text_line "$1" "$2" ;;
+    zellij) fm_backend_zellij_send_text_line "$@" ;;
+    orca) fm_backend_orca_send_text_line "$1" "$2" ;;
+    cmux) fm_backend_cmux_send_text_line "$@" ;;
+    t3code) fm_backend_t3code_send_text_line "$@" ;;
+  esac
+}
+
+fm_backend_send_literal() {  # <backend> <target> <text> [expected-label]
+  local backend=$1
+  shift
+  fm_backend_source "$backend" || return 1
+  case "$backend" in
+    tmux) fm_backend_tmux_send_literal "$1" "$2" ;;
+    herdr) fm_backend_herdr_send_literal "$1" "$2" ;;
+    zellij) fm_backend_zellij_send_literal "$@" ;;
+    orca) fm_backend_orca_send_literal "$1" "$2" ;;
+    cmux) fm_backend_cmux_send_literal "$@" ;;
+    t3code) fm_backend_t3code_send_literal "$@" ;;
+  esac
+}
+
+# Typing during shell launch is distinct from runtime control keys: T3 can
+# interrupt a turn, but refuses every attempt to type a key into a shell.
+fm_backend_type_key() {  # <backend> <target> <key> [expected-label]
+  local backend=$1
+  shift
+  fm_backend_source "$backend" || return 1
+  case "$backend" in
+    t3code) fm_backend_t3code_type_key "$@" ;;
+    tmux|herdr|orca) fm_backend_send_key "$backend" "$1" "$2" ;;
+    *) fm_backend_send_key "$backend" "$@" ;;
+  esac
+}

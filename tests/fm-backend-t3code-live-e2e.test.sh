@@ -9,7 +9,9 @@ set -euo pipefail
 # shellcheck source=bin/fm-backend.sh
 . "$ROOT/bin/fm-backend.sh"
 fm_backend_source t3code
-if [ -n "${FM_T3CODE_ORIGIN:-}" ] || [ -f "$(fm_backend_t3code_runtime_file)" ]; then
+if [ -n "${FM_T3CODE_ORIGIN:-}" ] || [ -f "$(fm_backend_t3code_runtime_file)" ] \
+  || command -v t3 >/dev/null 2>&1 || [ -d "/Applications/T3 Code.app" ] \
+  || [ -d "/Applications/T3 Code (Nightly).app" ]; then
   t3code-server() { :; }
 fi
 fm_live_gate default-on FM_T3CODE_LIVE_E2E node treehouse t3code-server
@@ -48,9 +50,9 @@ process.exit((d.projects || []).some(p => p.id === process.argv[1] && !p.deleted
 trap cleanup EXIT
 version=$(fm_backend_t3code_api GET /.well-known/t3/environment | node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync(0,"utf8")).serverVersion)')
 fm_backend_t3code_runtime_check
-project=$(fm_backend_t3code_project_ensure "$TMP_ROOT")
+project=$(fm_backend_container_ensure t3code "$TMP_ROOT")
 selection=$(fm_backend_t3code_model_selection codex "${FM_T3CODE_LIVE_MODEL:-gpt-5.6-sol}" default "$project")
-thread=$(fm_backend_t3code_thread_create "$project" fm-live-guard '' '' "$selection")
+thread=$(fm_backend_create_task t3code "$project" fm-live-guard '' '' "$selection")
 fm_backend_t3code_thread_read "$thread" 1 | node -e '
 const t=JSON.parse(require("fs").readFileSync(0,"utf8")).thread;
 if (t.id !== process.argv[1] || t.projectId !== process.argv[2] || t.worktreePath !== null) process.exit(1);

@@ -349,11 +349,11 @@ test_project_ensure_matches_realpath_or_creates() {
   t3_case project-ensure
   mkdir -p "$CASE_DIR/link-parent"
   ln -s "$REPO" "$CASE_DIR/link-parent/repo-link"
-  out=$(t3_run 'fm_backend_t3code_project_ensure "$1"' "$CASE_DIR/link-parent/repo-link") || fail "project_ensure failed: $out"
+  out=$(t3_run 'fm_backend_container_ensure t3code "$1"' "$CASE_DIR/link-parent/repo-link") || fail "project_ensure failed: $out"
   [ "$out" = proj-1 ] || fail "project_ensure should match the existing project through the symlink, got '$out'"
   [ -z "$(t3_dispatch_types)" ] || fail "a matched project must not dispatch project.create"
   mkdir -p "$CASE_DIR/other"
-  id=$(t3_run 'fm_backend_t3code_project_ensure "$1"' "$CASE_DIR/other") || fail "project_ensure create failed"
+  id=$(t3_run 'fm_backend_container_ensure t3code "$1"' "$CASE_DIR/other") || fail "project_ensure create failed"
   case "$id" in ????????-????-????-????-????????????) ;; *) fail "project_ensure should print a uuid for a new project, got '$id'" ;; esac
   [ "$(t3_dispatch_types)" = project.create ] || fail "an unmatched project must dispatch project.create"
   [ "$(t3_request 3 'r.body.projectId')" = "$id" ] || fail "project.create must carry the printed project id"
@@ -394,7 +394,7 @@ test_thread_create_and_turn_start_payloads() {
   local id selection
   t3_case thread-lifecycle
   selection='{"instanceId":"claudeAgent","model":"claude-sonnet-5"}'
-  id=$(t3_run 'fm_backend_t3code_thread_create proj-1 fm-task1 fm/task1 "$1" "$2"' "$REPO" "$selection") || fail "thread_create failed"
+  id=$(t3_run 'fm_backend_create_task t3code proj-1 fm-task1 fm/task1 "$1" "$2"' "$REPO" "$selection") || fail "thread_create failed"
   case "$id" in ????????-????-????-????-????????????) ;; *) fail "thread_create should print a uuid, got '$id'" ;; esac
   [ "$(t3_request 1 'r.body.type')" = thread.create ] || fail "thread_create must dispatch thread.create"
   [ "$(t3_request 1 'r.body.threadId')" = "$id" ] || fail "thread.create must carry the printed thread id"
@@ -413,7 +413,7 @@ test_thread_create_and_turn_start_payloads() {
   [ "$(t3_request 2 'r.body.modelSelection')" = "$selection" ] || fail "turn_start must forward the model selection when given"
   t3_run 'fm_backend_t3code_turn_start "$1" steer' "$id" || fail "turn_start without selection failed"
   [ "$(t3_request 3 'r.body.modelSelection')" = undefined ] || fail "a steer without a selection must omit modelSelection"
-  t3_run 'fm_backend_t3code_thread_create proj-1 fm-home "" "" "$1"' "$selection" >/dev/null || fail "thread_create without a worktree failed"
+  t3_run 'fm_backend_create_task t3code proj-1 fm-home "" "" "$1"' "$selection" >/dev/null || fail "thread_create without a worktree failed"
   [ "$(t3_request 4 'r.body.worktreePath')" = null ] || fail "an empty worktree must send worktreePath null (an empty string is an HTTP 400), got '$(t3_request 4 'r.body.worktreePath')'"
   [ "$(t3_request 4 'r.body.branch')" = null ] || fail "an empty branch must send branch null"
   pass "fm_backend_t3code_thread_create/turn_start: verified command payloads"
@@ -588,6 +588,28 @@ test_dispatcher_routes_and_validates_t3code_meta() {
   t3_run 'fm_backend_validate_task_endpoint "$1" "$2"' "$state/$id.meta" "$id" 2>/dev/null && fail "a thread id outside the uuid charset must refuse"
   [ "$(t3_run 'fm_backend_required_tools t3code')" = 'node treehouse' ] || fail "t3code requires node and treehouse"
   pass "fm-backend dispatcher: routes every t3code primitive, validates and resolves t3_thread_id records"
+}
+
+test_shared_spawn_primitives_and_typing_refusals() {
+  local op out
+  t3_case shared-spawn ready
+  t3_run 'fm_backend_target_ready t3code thread-live' || fail 'an existing T3 target must be ready'
+  if t3_run 'fm_backend_target_ready t3code missing-thread'; then fail 'a missing T3 thread must not be ready'; fi
+  : > "$LOG"
+  for op in send_literal send_text_line type_key; do
+    if out=$(t3_run '"fm_backend_$1" t3code thread-live Enter label' "$op" 2>&1); then
+      fail "$op must refuse T3 shell typing"
+    fi
+    [ "$out" = 'error: backend=t3code has no pane to type into' ] || fail "$op changed the typing refusal: $out"
+  done
+  [ ! -s "$LOG" ] || fail 'refused typing must not dispatch or read a thread'
+  t3_run 'fm_backend_send_key t3code thread-live Enter' || fail 'runtime Enter remains a no-op'
+  t3_run 'fm_backend_validate_harness t3code claude; fm_backend_validate_harness t3code codex' || fail 'T3 supported harnesses changed'
+  for op in opencode pi pi-signed grok kimi cursor gemini muse rovo omp agy; do
+    if out=$(t3_run 'fm_backend_validate_harness t3code "$1"' "$op" 2>&1); then fail "T3 must refuse harness $op"; fi
+    assert_contains "$out" "not '$op'" 'harness refusal must name the unsupported adapter'
+  done
+  pass 'shared T3 target readiness and typing refusals preserve all harness admission and runtime-key behavior'
 }
 
 test_busy_classify_trusts_native_idle_and_busy() {
@@ -1281,6 +1303,7 @@ test_send_text_submit_verdicts
 test_status_table
 test_kill_stops_then_archives_and_tolerates_gone
 test_dispatcher_routes_and_validates_t3code_meta
+test_shared_spawn_primitives_and_typing_refusals
 test_busy_classify_trusts_native_idle_and_busy
 test_control_lib_tables
 test_control_exit_stops_session_natively
