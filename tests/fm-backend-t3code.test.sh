@@ -801,6 +801,8 @@ test_spawn_leases_slot_creates_thread_and_starts_launch_turn() {
   assert_present "$wt/CLAUDE.local.md" "a claude worker gets the task-worker channel statement as CLAUDE.local.md"
   assert_grep "task worker launched by Firstmate" "$wt/CLAUDE.local.md" "CLAUDE.local.md must carry the channel statement"
   assert_grep "first-party task instructions" "$wt/CLAUDE.local.md" "CLAUDE.local.md must name the brief and inbox as first-party"
+  assert_grep "link_pull_request, list_thread_pull_requests, or unlink_pull_request" "$wt/CLAUDE.local.md" "CLAUDE.local.md must prohibit T3's PR-linking tools"
+  assert_grep "done: PR <url> status line" "$wt/CLAUDE.local.md" "CLAUDE.local.md must name Firstmate's PR-recording channel"
   t3_excluded "$wt" CLAUDE.local.md || fail "CLAUDE.local.md must be git-excluded"
   [ "$(t3_log_line_of 'r.body && r.body.type === "thread.turn.start"')" -gt "$(t3_log_line_of 'r.tool === "treehouse"')" ] \
     || fail "the launch turn must follow the lease"

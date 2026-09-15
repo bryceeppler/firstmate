@@ -1586,7 +1586,7 @@ The control plane ran the same day against that drill's scout while its session 
 
 Two `claude` scouts at `claude-sonnet-5` and `low` effort, dispatched the same day through `bin/fm-spawn.sh --scout --backend t3code` with a short operator brief asking for a read-only shell environment report, each refused the launch brief as a prompt-injection attempt in their first message and ran nothing.
 A thread created on the same slot, with the task-worker channel statement `launch_template()` appends on a pane backend written to the worktree's `CLAUDE.local.md`, was started with the identical encoded brief and followed it, ran the commands, and reported.
-That file is now the t3code carrier of the statement for `claude` ship and scout workers; `tests/fm-backend-t3code.test.sh` pins its presence, exclusion, absence for `codex` and secondmates, and removal at teardown.
+That file is now the t3code carrier of the statement for `claude` ship and scout workers; `tests/fm-backend-t3code.test.sh` pins its presence, its prohibition on the three T3 pull-request-linking tools, its exclusion, its absence for `codex` and secondmates, and its removal at teardown.
 
 A Codex mid-turn steer ran the same day on a `codex` thread at `gpt-5.6-sol` and `low` effort created with `worktreePath: null` on a scratch project.
 The first `thread.turn.start` asked for a count to 60 with a two-second shell sleep between numbers; 27 seconds after the session read `running`, a second `thread.turn.start` asked the agent to stop and reply with the words `steer landed` and the last number.
