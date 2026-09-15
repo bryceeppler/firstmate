@@ -69,7 +69,7 @@
 #   codex-app is not a known backend yet; docs/codex-app-backend.md owns that
 #   blocked backend contract. Default tmux spawns do not write backend= to meta;
 #   absent backend= means tmux. cmux does not support --secondmate spawns yet.
-#   t3code is explicit-only and experimental (docs/t3code-backend.md): T3 Code
+#   t3code is experimental (docs/t3code-backend.md): T3 Code
 #   owns the agent session, so the spawn leases a treehouse slot durably,
 #   creates a T3 thread on it, and starts the launch turn over HTTP instead of
 #   typing into a pane; only claude and codex harnesses. The exports a pane

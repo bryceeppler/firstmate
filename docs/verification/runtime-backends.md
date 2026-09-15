@@ -1508,6 +1508,17 @@ FM_CONFIG_OVERRIDE=<home>/config bin/fm-test-run.sh tests/fm-backend-t3code-live
 ok - T3 Code 0.0.41-nightly.20260914.1722 live lifecycle and cleanup
 ```
 
+The optional prompt arm also passed on 2026-09-15 against that version:
+
+```sh
+FM_CONFIG_OVERRIDE=<home>/config FM_T3CODE_PROMPT_LIVE=1 bin/fm-test-run.sh tests/fm-backend-t3code-live-e2e.test.sh
+```
+
+```text
+ok - T3 Code 0.0.41-nightly.20260914.1722 prompt and capture
+ok - T3 Code 0.0.41-nightly.20260914.1722 live lifecycle and cleanup
+```
+
 ### Initial adapter verification
 
 A live probe ran on 2026-09-14 against T3 Code 0.0.41-nightly.20260914.1707 over its HTTP orchestration API.

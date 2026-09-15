@@ -134,7 +134,7 @@ T3 Code is checked after all tmux, Herdr, and cmux signals, only when an origin 
 An ambiguous, absent, or unreadable T3 match leaves detection unresolved.
 Zellij and Orca are never auto-detected; select them by putting the name in a local `config/backend` file, by exporting `FM_BACKEND=<name>`, or by telling the first mate in chat.
 Any value other than `tmux`, `herdr`, `zellij`, `orca`, `cmux`, or `t3code` is rejected until another adapter is implemented and verified.
-`fm-spawn.sh` accepts `tmux`, `herdr`, `zellij`, `orca`, `cmux`, and `t3code` for ship and scout tasks; `backend=orca`, `backend=cmux`, and `backend=t3code` all still refuse `--secondmate` until secondmate launch semantics are designed for each, and `backend=t3code` runs only the `claude` and `codex` harnesses.
+`fm-spawn.sh` accepts `tmux`, `herdr`, `zellij`, `orca`, `cmux`, and `t3code` for ship and scout tasks; `backend=orca` and `backend=cmux` still refuse `--secondmate`, while `backend=t3code` supports secondmates and runs only the `claude` and `codex` harnesses.
 `codex-app` is not an accepted runtime backend yet; [`docs/codex-app-backend.md`](codex-app-backend.md) owns the Codex App boundary.
 The session-start secondmate liveness sweep uses the recovery-grade `fm_backend_agent_state` classifier where verified.
 The comment above that function in `bin/fm-backend.sh` is the single owner of its detailed state contract and recovery authorization.
