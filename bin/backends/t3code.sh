@@ -435,3 +435,90 @@ fm_backend_t3code_kill() {  # <thread-id>
   fm_backend_t3code_dispatch "$cmd" >/dev/null && rc=0 || rc=$?
   case "$rc" in 0|4) return 0 ;; *) return 1 ;; esac
 }
+
+# Native shell stream, bounded by the watcher's existing poll budget. Node's
+# built-in WebSocket is optional: an older Node retains the HTTP poll path.
+fm_backend_t3code_events_capable() {  # [session]
+  node -e 'process.exit(typeof WebSocket === "function" ? 0 : 1)' 2>/dev/null || return 1
+  fm_backend_t3code_runtime_check >/dev/null 2>&1
+}
+
+fm_backend_t3code_event_reader_cmd() {
+  printf 'node\n%s/t3code-eventwait.cjs\n' "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+}
+
+# The stream carries the same session row as HTTP plus explicit pending-human
+# flags. Only those flags add blocked; a stopped/error/absent thread cannot
+# become actionable merely because an old request flag survived.
+fm_backend_t3code_normalize_event() {  # <thread> <project> <session-status> <pending> <instance>
+  local state row
+  row=$(fm_backend_t3code_state_row "$3")
+  case "$row" in
+    'busy alive') state=working ;;
+    'idle alive') state=idle ;;
+    *) state=unknown ;;
+  esac
+  if [ "${row#* }" = alive ] && [ "$4" = true ]; then state=blocked; fi
+  fm_transition_record "$1" "$2" '' "$state" "$5"
+}
+
+fm_backend_t3code_escalation_marker() {  # <state-dir> <thread>
+  printf '%s/.t3code-escalated-%s' "$1" "$(printf '%s' "$2" | tr ':/.' '___')"
+}
+
+fm_backend_t3code_commit_transition() {  # <state-dir> <session> <record>
+  local thread
+  thread=$(fm_transition_pane_id "$3")
+  [ -n "$thread" ] || return 1
+  : > "$(fm_backend_t3code_escalation_marker "$1" "$thread")"
+}
+
+fm_backend_t3code_clear_transition() {  # <state-dir> <thread>
+  [ -n "$2" ] || return 0
+  rm -f "$(fm_backend_t3code_escalation_marker "$1" "$2")"
+}
+
+# Returns 0 with one normalized actionable record, 1 after a clean full-budget
+# wait, or 2 for polling fallback. Snapshot rows reconcile reconnect gaps;
+# dedupe is committed only after the watcher durably queues the wake.
+fm_backend_t3code_wait_transition() {  # <session> <timeout> <state-dir> <thread...>
+  local timeout=$2 state=$3
+  shift 3
+  [ "$#" -gt 0 ] || return 2
+  if [ "${FM_BACKEND_EVENTS_CAPABILITY_CONFIRMED:-0}" != 1 ]; then
+    fm_backend_t3code_events_capable || return 2
+  fi
+  # shellcheck source=bin/fm-transition-lib.sh
+  . "$(dirname "${BASH_SOURCE[0]}")/../fm-transition-lib.sh"
+  local reader=() word dir pid line record marker action rc=1 reader_rc=0
+  while IFS= read -r word; do reader+=("$word"); done < <(fm_backend_t3code_event_reader_cmd)
+  dir=$(mktemp -d "${TMPDIR:-/tmp}/fm-t3code-eventwait.XXXXXX") || return 2
+  mkfifo "$dir/events" || { rmdir "$dir"; return 2; }
+  FM_T3CODE_RUNTIME_FILE=$(fm_backend_t3code_runtime_file) \
+  FM_T3CODE_TOKEN_FILE="$(fm_backend_t3code_config_dir)/t3code-token" \
+    "${reader[@]}" "$timeout" "$@" > "$dir/events" 2>/dev/null &
+  pid=$!
+  exec 9< "$dir/events"
+  if ! IFS= read -r line <&9 || [ "$line" != subscribed ]; then rc=2; fi
+  while [ "$rc" -eq 1 ] && IFS= read -r line <&9; do
+    record=$(fm_backend_t3code_normalize_event \
+      "$(printf '%s' "$line" | cut -f1)" "$(printf '%s' "$line" | cut -f2)" \
+      "$(printf '%s' "$line" | cut -f3)" "$(printf '%s' "$line" | cut -f4)" \
+      "$(printf '%s' "$line" | cut -f5)")
+    marker=$(fm_backend_t3code_escalation_marker "$state" "$(fm_transition_pane_id "$record")")
+    action=$(fm_transition_policy "$(fm_transition_to_status "$record")")
+    case "$action" in
+      actionable)
+        if [ ! -e "$marker" ]; then printf '%s' "$record"; rc=0; fi
+        ;;
+      absorb) rm -f "$marker" ;;
+    esac
+  done
+  if [ "$rc" -ne 1 ]; then kill "$pid" 2>/dev/null || true; fi
+  wait "$pid" 2>/dev/null || reader_rc=$?
+  exec 9<&-
+  rm -rf "$dir"
+  [ "$rc" -ne 0 ] || return 0
+  [ "$rc" -ne 2 ] && [ "$reader_rc" -eq 0 ] && return 1
+  return 2
+}

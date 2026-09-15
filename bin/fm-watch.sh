@@ -1700,7 +1700,7 @@ event_wait_or_sleep() {
     # they are excluded from the fast escalation exactly as the stale loop skips
     # them.
     [ "$(window_kind "$w")" = secondmate ] && continue
-    session=${w%%:*}
+    session=$(fm_backend_event_session "$b" "$w")
     if [ -z "$first_backend" ]; then first_backend=$b; first_session=$session; fi
     # One socket connection covers one backend+session; a home normally has a
     # single herdr session. A window in a different backend/session stays on the

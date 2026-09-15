@@ -58,6 +58,13 @@ if (t.id !== process.argv[1] || t.projectId !== process.argv[2] || t.worktreePat
 [ "$(fm_backend_t3code_probe "$thread")" = idle ]
 [ "$(fm_backend_t3code_state_row "$(fm_backend_t3code_probe "$thread")")" = 'idle alive' ]
 [ "$(fm_backend_capture t3code "$thread" 20)" = 't3code: session=none turn=none' ]
+# A real subscribed snapshot proves the installed server still speaks the
+# reader protocol. No thread beyond this guard is selected for output.
+FM_T3CODE_RUNTIME_FILE=$(fm_backend_t3code_runtime_file) \
+FM_T3CODE_TOKEN_FILE="$(fm_backend_t3code_config_dir)/t3code-token" \
+  node "$ROOT/bin/backends/t3code-eventwait.cjs" 1 "$thread" > "$TMP_ROOT/events"
+assert_grep 'subscribed' "$TMP_ROOT/events" "T3 Code $version did not acknowledge the stream"
+assert_grep "$thread" "$TMP_ROOT/events" "T3 Code $version stream checked no owned thread"
 # The token-free lifecycle has passed even when the nested prompt gate skips.
 checked=1
 (
