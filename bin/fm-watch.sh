@@ -1284,8 +1284,8 @@ clear_pause_state() {  # <window-key>
 
 # The hash-scoped half of clear_pause_tracking: the stale suppressor, its wedge
 # timer and escalation count, and every deferral the timer can take - the shared
-# quiet-window anchor and both re-surface throttles (clear_defer_tracking) plus the
-# wait-deferral throttle. Split out so a caller
+# quiet-window anchor and its one re-surface throttle (clear_defer_tracking) plus
+# the wait-deferral throttle. Split out so a caller
 # that must keep a window's DECLARATION-scoped pause state - its .paused-* flag,
 # recheck, and re-surface throttle - can still reset the per-hash half alone.
 clear_stale_hash_tracking() {  # <window-key>

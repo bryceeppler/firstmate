@@ -436,8 +436,11 @@ classify_stale() {  # <window> <state> [<span-record> <span-status>]
     # (fm-classify-lib.sh owns which declarations qualify): an idle pane is
     # EXPECTED, so this is not a wedge. The caller records a pause marker (long
     # re-surface cadence in housekeeping) rather than a wedge stale marker. Cheap:
-    # reuses the status line already read, no fm-crew-state.sh call, mirroring the
-    # daemon's existing status-log classification.
+    # reuses the status line already read, mirroring the daemon's existing
+    # status-log classification. Housekeeping's own stale recheck is the one place
+    # that does read fm-crew-state.sh, and only inside its at-threshold branch: at
+    # most once per crew per FM_STALE_ESCALATE_SECS, and each of those reads can
+    # chain no-mistakes invocations bounded at FM_CREW_STATE_NM_TIMEOUT apiece.
     printf 'pause|paused (awaiting external), rechecked on a long cadence: %s' "$last"
     return
   fi
@@ -494,9 +497,9 @@ stale_marker_record() {  # <window> <state>  — create if absent
   [ -e "$marker" ] || _now > "$marker"
 }
 
-stale_marker_remove() {  # <window> <state>
-  local win=$1 state=$2 key
-  key=$(_stale_key "$(window_to_task "$win" "$state")")
+stale_marker_remove() {  # <task> <state>
+  local task=$1 state=$2 key
+  key=$(_stale_key "$task")
   rm -f "$state/.subsuper-stale-$key" "$state/.subsuper-validating-$key"
 }
 
@@ -542,22 +545,21 @@ validating_defer() {  # <window> <state> <key>
 # per window. Recording is create-if-absent so the timestamp is stable across a
 # churny pane (many distinct stale hashes map to one marker), keeping the cadence
 # hash-immune.
-pause_marker_record() {  # <window> <state> - create if absent
-  local win=$1 state=$2 key marker
-  key=$(_stale_key "$(window_to_task "$win" "$state")")
+pause_marker_record() {  # <task> <state> - create if absent
+  local task=$1 state=$2 key marker
+  key=$(_stale_key "$task")
   marker="$state/.subsuper-paused-$key"
   [ -e "$marker" ] || _now > "$marker"
 }
 
-pause_marker_remove() {  # <window> <state>
-  local win=$1 state=$2 key
-  key=$(_stale_key "$(window_to_task "$win" "$state")")
+pause_marker_remove() {  # <task> <state>
+  local task=$1 state=$2 key
+  key=$(_stale_key "$task")
   rm -f "$state/.subsuper-paused-$key" "$state/.subsuper-pause-until-due-$key"
 }
 
-clear_pause_tracking() {  # <window> <state>
-  local win=$1 state=$2 task key watcher_key
-  task=$(window_to_task "$win" "$state")
+clear_pause_tracking() {  # <window> <task> <state>
+  local win=$1 task=$2 state=$3 key watcher_key
   key=$(_stale_key "$task")
   watcher_key=$(_stale_key "$win")
   rm -f "$state/.subsuper-paused-$key" "$state/.subsuper-pause-until-due-$key" "$state/.subsuper-stale-$key" \
@@ -568,17 +570,16 @@ clear_pause_tracking() {  # <window> <state>
     "$state/.waiting-resurfaced-$watcher_key"
 }
 
-reconcile_pause_tracking() {  # <window> <state> <last-status-line>
-  local win=$1 state=$2 last=$3 task key marker watcher_key
-  task=$(window_to_task "$win" "$state")
+reconcile_pause_tracking() {  # <window> <task> <state> <last-status-line>
+  local win=$1 task=$2 state=$3 last=$4 key marker watcher_key
   key=$(_stale_key "$task")
   marker="$state/.subsuper-paused-$key"
   watcher_key=$(_stale_key "$win")
   if status_is_paused_or_captain_held "$last"; then
-    stale_marker_remove "$win" "$state"
-    pause_marker_record "$win" "$state"
+    stale_marker_remove "$task" "$state"
+    pause_marker_record "$task" "$state"
   elif [ -e "$marker" ] || [ -e "$state/.paused-$watcher_key" ]; then
-    clear_pause_tracking "$win" "$state"
+    clear_pause_tracking "$win" "$task" "$state"
   fi
 }
 
@@ -593,7 +594,7 @@ migrate_watcher_pause_markers() {  # <state>
     watcher_key=$(_stale_key "$win")
     last=$(last_status_line "$state/$task.status")
     if status_is_paused_or_captain_held "$last" || [ -e "$state/.subsuper-paused-$key" ] || [ -e "$state/.paused-$watcher_key" ]; then
-      reconcile_pause_tracking "$win" "$state" "$last"
+      reconcile_pause_tracking "$win" "$task" "$state" "$last"
     fi
   done
 }
@@ -610,7 +611,7 @@ sync_pause_markers_from_signal() {  # <state> <signal files>
     pair=$(window_and_task_for_key "$task" "$state" 2>/dev/null || true)
     win=${pair%%$'\t'*}
     [ -n "$win" ] || continue
-    reconcile_pause_tracking "$win" "$state" "$last"
+    reconcile_pause_tracking "$win" "$task" "$state" "$last"
   done
 }
 
@@ -1114,7 +1115,7 @@ housekeeping() {  # <state>
     fi
     last=$(last_status_line "$state/$task.status")
     if [ -n "$last" ] && status_is_paused_or_captain_held "$last"; then
-      reconcile_pause_tracking "$win" "$state" "$last"
+      reconcile_pause_tracking "$win" "$task" "$state" "$last"
       continue
     fi
     age=$(( now - $(cat "$marker" 2>/dev/null || echo "$now") ))
@@ -1162,7 +1163,7 @@ housekeeping() {  # <state>
     fi
     last=$(last_status_line "$state/$task.status")
     if [ -z "$last" ] || ! status_is_paused_or_captain_held "$last"; then
-      reconcile_pause_tracking "$win" "$state" "$last"
+      reconcile_pause_tracking "$win" "$task" "$state" "$last"
       continue
     fi
     marker_epoch=$(cat "$marker" 2>/dev/null || echo "$now")
@@ -1469,7 +1470,7 @@ handle_wake() {  # <reason> <state>
   if [ "$kind" = stale ] && [ "$action" = escalate ]; then
     task=$(window_to_task "$arg" "$state")
     last=$(last_status_line "$state/$task.status")
-    reconcile_pause_tracking "$arg" "$state" "$last"
+    reconcile_pause_tracking "$arg" "$task" "$state" "$last"
   fi
   case "$action" in
     escalate)
@@ -1477,7 +1478,7 @@ handle_wake() {  # <reason> <state>
       if escalate_add "$state" "$distilled"; then
         # A terminal-stale escalate must not leave a persistence marker behind, or
         # housekeeping re-escalates the same pane as a false wedge later.
-        [ "$kind" = "stale" ] && stale_marker_remove "$arg" "$state"
+        [ "$kind" = "stale" ] && stale_marker_remove "$task" "$state"
         mark_escalated_seen "$state" "$capture" || classification_failed=1
         [ "${FM_ESCALATE_BATCH_SECS:-$ESCALATE_BATCH_SECS_DEFAULT}" -le 0 ] && { escalate_flush "$state" || true; }
       else
@@ -1490,8 +1491,9 @@ handle_wake() {  # <reason> <state>
       # wedge stale marker, so a pane that transitioned working->declared-wait is not
       # still wedge-aged. Only stale produces this action.
       if [ "$kind" = "stale" ]; then
-        stale_marker_remove "$arg" "$state"
-        pause_marker_record "$arg" "$state"
+        task=$(window_to_task "$arg" "$state")
+        stale_marker_remove "$task" "$state"
+        pause_marker_record "$task" "$state"
       fi
       log "self-handle (paused): $reason -> $distilled"
       ;;
@@ -1518,9 +1520,9 @@ handle_wake() {  # <reason> <state>
           fi
         fi
         if [ "$_clear_wedge" = 1 ]; then
-          stale_marker_remove "$arg" "$state"
+          stale_marker_remove "$task" "$state"
         else
-          pause_marker_remove "$arg" "$state"
+          pause_marker_remove "$task" "$state"
           stale_marker_record "$arg" "$state"
         fi
       fi
