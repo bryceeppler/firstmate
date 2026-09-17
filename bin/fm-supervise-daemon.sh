@@ -49,12 +49,13 @@
 #     fm-classify-lib.sh's combined predicate - instead gets its own longer
 #     PAUSE_RESURFACE_SECS recheck, never a wedge escalation, whether its pane
 #     reads idle or busy; only a status append that stops declaring the wait
-#     ends that routing. A crew parked on a LIVE no-mistakes run step
+#     ends that routing. A crew parked on a LIVE, still-moving no-mistakes run step
 #     (fm-classify-lib.sh's crew_is_validating) is a declared wait it never had to
 #     write down - the pipeline runs its work outside the pane - and takes the same
 #     PAUSE_RESURFACE_SECS recheck instead of a wedge escalation; the verdict is
 #     read once, at the moment an escalation would otherwise fire, and a parked
-#     gate, failed run, or pane with no run step keeps the unchanged schedule.
+#     gate, failed run, run whose own activity has gone quiet, or pane with no run
+#     step keeps the unchanged schedule.
 #     A captain-held transfer is not rechecked at all while
 #     the away-posture record (state/.afk-contract) exists: nobody is there to
 #     answer it, and the return brief lists it.
@@ -516,9 +517,10 @@ stale_marker_remove() {  # <window> <state>
 # The crew-state read costs one bounded call and runs ONLY here, at the moment an
 # escalation would otherwise fire: at most once per window per FM_STALE_ESCALATE_SECS,
 # never on the per-poll classification path.
-validating_defer() {  # <window> <state> <task>
-  local win=$1 state=$2 task=$3 key marker epoch vage
-  key=$(_stale_key "$task")
+# Takes the caller's <key> rather than re-deriving it from the task, so the
+# markers it ages are the exact files the housekeeping loop iterated.
+validating_defer() {  # <window> <state> <key>
+  local win=$1 state=$2 key=$3 marker epoch vage
   marker="$state/.subsuper-validating-$key"
   [ -e "$marker" ] || _now > "$marker"
   # Content epoch, not mtime, exactly as the stale and pause markers beside it age:
@@ -1117,13 +1119,16 @@ housekeeping() {  # <state>
     age=$(( now - $(cat "$marker" 2>/dev/null || echo "$now") ))
     [ "$age" -ge "${FM_STALE_ESCALATE_SECS:-$STALE_ESCALATE_SECS_DEFAULT}" ] || continue
     stale_window_is_busy "$win" "$state"
+    # Removal uses the key this loop is iterating, never a re-derived one: two
+    # metas can share a window value, and window_to_task answers with the first
+    # of them, which would leave this marker in place to re-enter every pass.
     case "$?" in
-      0) stale_marker_remove "$win" "$state" ;;
-      2) stale_marker_remove "$win" "$state" ;;
+      0) rm -f "$marker" "$state/.subsuper-validating-$key" ;;
+      2) rm -f "$marker" "$state/.subsuper-validating-$key" ;;
       *) if crew_is_validating "$task"; then
-           validating_defer "$win" "$state" "$task"
+           validating_defer "$win" "$state" "$key"
          elif escalate_add "$state" "stale persisted ${age}s (possible wedge): $win"; then
-           stale_marker_remove "$win" "$state"
+           rm -f "$marker" "$state/.subsuper-validating-$key"
          fi ;;
     esac
   done

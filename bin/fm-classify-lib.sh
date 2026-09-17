@@ -1978,19 +1978,31 @@ crew_is_paused() {  # <id>
   [ "$(crew_absorb_class "$1")" = paused ]
 }
 
-# 0 if crew <id>'s authoritative current state is a LIVE no-mistakes run step -
-# state `working` attributed to `run-step`, which bin/fm-crew-state.sh reports only
-# for a running, fixing, or ci step. This is a declared wait the crew never had to
-# write down: the pipeline is executing its work outside the pane, so the pane has
-# nothing to draw for as long as the step runs, and the stale path must treat that
-# quiet the way it treats a `paused:` declaration - absorbed on the long re-surface
-# cadence rather than escalated as a possible wedge. Six consecutive false
-# possible-wedge escalations against crews reading `validating (running)` during the
-# 2026-09-16 and 2026-09-17 away windows are what this predicate exists to stop.
+# 0 if crew <id>'s authoritative current state is a live no-mistakes run step that
+# is PROVABLY MOVING: state `working` attributed to `run-step`, plus the
+# `activity: recent` fact bin/fm-crew-state.sh puts on that line. This is a
+# declared wait the crew never had to write down: the pipeline is executing its
+# work outside the pane, so the pane has nothing to draw for as long as the step
+# runs, and the stale path must treat that quiet the way it treats a `paused:`
+# declaration - absorbed on the long re-surface cadence rather than escalated as a
+# possible wedge. Six consecutive false possible-wedge escalations against crews
+# reading `validating (running)` during the 2026-09-16 and 2026-09-17 away windows
+# are what this predicate exists to stop.
+#
+# BOTH conditions are load-bearing, because `working · run-step` alone is wider
+# than the running/fixing/ci steps it looks like: bin/fm-crew-state.sh also emits
+# it for an empty status word (`run active`), for any status word it does not
+# recognize (`run active (<status>)`), and for the coarse ledger fallback
+# (`validating (background run)`). A run record keeps reading `running` after its
+# step process is killed or hangs, so the state word by itself would put a wedged
+# pipeline on the 4h cadence forever. The recency fact is what closes that: it is
+# positive evidence from the pipeline's own active-steps table, so an absent table
+# (the coarse fallback, or a terminal-shaped record) reads quiet and falls through
+# to the unchanged possible-wedge path on its ordinary schedule.
 #
 # Deliberately NARROWER than crew_is_provably_working, which also absorbs a busy
 # pane: a busy pane proves only that something is rendering, so it keeps the
-# unchanged wedge schedule. The run-step mapping is what makes the narrowing
+# unchanged wedge schedule. The run-step mapping is what keeps the narrowing
 # self-enforcing - a parked approval or fix-review gate reports `parked`, a failed
 # or cancelled run reports `failed`, and a passed one reports `done`, so none of
 # them can reach this predicate and a gate that needs firstmate is never silenced.
@@ -2000,7 +2012,9 @@ crew_is_validating() {  # <id>
   state=${line#state: }; state=${state%% *}
   [ "$state" = working ] || return 1
   src=${line#*source: }; src=${src%% *}
-  [ "$src" = run-step ]
+  [ "$src" = run-step ] || return 1
+  case "$line" in *"activity: recent"*) return 0 ;; esac
+  return 1
 }
 
 # Directories excluded from the worktree write probe below, and the depth it walks.

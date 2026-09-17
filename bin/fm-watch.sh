@@ -44,7 +44,7 @@
 #                          external wait or a verified `captain-held` transfer -
 #                          is deferred to that same long recheck cadence instead
 #                          (wedge_wait_evidence); a pane whose crew is parked on a
-#                          LIVE no-mistakes run step is deferred too
+#                          LIVE, still-moving no-mistakes run step is deferred too
 #                          (wedge_defer_validating), because a validating pipeline
 #                          runs the work outside the pane and an idle pane is what
 #                          validating looks like; and a pane whose own task
@@ -912,6 +912,10 @@ resurface_absorbed() {  # <window> <throttle-marker> <age> <reason> [scope] [min
 wedge_defer_writing() {  # <window> <since-file> <triage-label> <idle-age>
   local win=$1 since_file=$2 label=$3 age=$4 key wsf wage
   key=$(window_key "$win")
+  # Drop the sibling chain first: one continuous quiet window can alternate
+  # deferral kinds, and a marker anchored by a deferral that no longer applies
+  # would otherwise report the whole window as this deferral's age.
+  clear_validating_chain "$key"
   wsf="$STATE/.writing-since-$key"
   [ -e "$wsf" ] || date +%s > "$wsf"
   wage=$(age_of "$wsf")
@@ -939,6 +943,10 @@ wedge_defer_writing() {  # <window> <since-file> <triage-label> <idle-age>
 wedge_defer_validating() {  # <window> <since-file> <triage-label> <idle-age>
   local win=$1 since_file=$2 label=$3 age=$4 key vsf vage
   key=$(window_key "$win")
+  # Drop the sibling chain first, for the same reason wedge_defer_writing does:
+  # a write deferral earlier in this same quiet window must not lend its age to
+  # the run that is deferring now.
+  clear_write_chain "$key"
   vsf="$STATE/.validating-since-$key"
   [ -e "$vsf" ] || date +%s > "$vsf"
   vage=$(age_of "$vsf")
@@ -1048,18 +1056,29 @@ wedge_defer_wait() {  # <window> <task> <since-file> <triage-label> <idle-age> <
   triage_log "absorbed $label (the pane's own wait explains the quiet, idle ${age}s): $win"
 }
 
-# Drop a window's marker-anchored deferral chains - the write deferral and the
-# live-validation deferral - wherever its stale bookkeeping resets, so the bounded
-# re-surface cadence is measured from the CURRENT quiet stretch and a long-finished
-# one cannot make the next deferral resurface immediately. Both chains reset
-# together because both are anchored on a marker this watcher wrote, and a reset
-# that kept one of them would carry the old quiet stretch into the new window.
+# The two marker-anchored deferral chains, each owning its own filenames so the
+# deferral that takes a quiet window can drop the other's markers without
+# restating them. A chain is its since-marker (what the re-surface cadence is
+# measured from) plus its own re-surface throttle.
+clear_write_chain() {  # <window-key>
+  rm -f "$STATE/.writing-since-$1" "$STATE/.writing-resurfaced-$1"
+}
+
+clear_validating_chain() {  # <window-key>
+  rm -f "$STATE/.validating-since-$1" "$STATE/.validating-resurfaced-$1"
+}
+
+# Drop BOTH of a window's deferral chains wherever its stale bookkeeping resets, so
+# the bounded re-surface cadence is measured from the CURRENT quiet stretch and a
+# long-finished one cannot make the next deferral resurface immediately. Both chains
+# reset together because both are anchored on a marker this watcher wrote, and a
+# reset that kept one of them would carry the old quiet stretch into the new window.
 # The wait deferral is not here: it is anchored on the worker's own status-file
 # mtime, so it has no marker to age (clear_stale_hash_tracking drops its throttle).
 clear_defer_tracking() {  # <window-key>
   local key=$1
-  rm -f "$STATE/.writing-since-$key" "$STATE/.writing-resurfaced-$key" \
-    "$STATE/.validating-since-$key" "$STATE/.validating-resurfaced-$key"
+  clear_write_chain "$key"
+  clear_validating_chain "$key"
 }
 
 # Repeat-poll wedge-timer bookkeeping for an already-classified stale hash
@@ -1078,8 +1097,16 @@ clear_defer_tracking() {  # <window-key>
 # said why it is quiet has nothing to prove through a run record or its worktree,
 # and a pane whose pipeline is provably mid-run has nothing to prove through a
 # filesystem walk.
-wedge_timer_check() {  # <window> <since-file> <triage-label> <escalation-count-file> <task>
-  local win=$1 since_file=$2 label=$3 escalation_file=$4 task=$5 since age n reason evidence
+# <entry> names which bound routed the window here, because the live run-step
+# deferral applies to only one of them. `stale` is a quiet pane, where an executing
+# pipeline genuinely explains a pane that renders nothing. `busy-turn-bound` is a
+# pane past BUSY_TURN_MAX_SECS with no completed turn, whose whole rationale is
+# that a hung foreground call can hide behind a busy signature - a live run record
+# does not contradict that, so the bound keeps its unchanged escalation. It is a
+# parameter rather than a test on <triage-label> because the label is presentation
+# text for the triage log and must never become control flow.
+wedge_timer_check() {  # <window> <since-file> <triage-label> <escalation-count-file> <task> <entry: stale|busy-turn-bound>
+  local win=$1 since_file=$2 label=$3 escalation_file=$4 task=$5 entry=$6 since age n reason evidence
   since=$(cat "$since_file" 2>/dev/null || true)
   case "$since" in
     ''|*[!0-9]*)
@@ -1096,7 +1123,7 @@ wedge_timer_check() {  # <window> <since-file> <triage-label> <escalation-count-
           wedge_defer_wait "$win" "$task" "$since_file" "$label" "$age" "$evidence"
           return 0
         fi
-        if crew_is_validating "$task"; then
+        if [ "$entry" = stale ] && crew_is_validating "$task"; then
           wedge_defer_validating "$win" "$since_file" "$label" "$age"
           return 0
         fi
@@ -1252,7 +1279,7 @@ busy_turn_bound_check() {  # <window> <task> <hash> <since-file> <escalation-fil
     handle_paused_stale "$win" "$task" "$h"
     return 0
   fi
-  wedge_timer_check "$win" "$since_file" "busy (no completed turn)" "$escalation_file" "$task"
+  wedge_timer_check "$win" "$since_file" "busy (no completed turn)" "$escalation_file" "$task" busy-turn-bound
   return 1
 }
 
@@ -2555,7 +2582,7 @@ EOF
             # wedge timer is running for it) - keep treating it that way
             # without re-reading the crew state every poll, and without
             # letting the still-captain-relevant log line re-surface it.
-            wedge_timer_check "$w" "$ssf" "stale (overridden terminal status)" "$ewf" "$task"
+            wedge_timer_check "$w" "$ssf" "stale (overridden terminal status)" "$ewf" "$task" stale
           fi
           # else: already surfaced as genuinely terminal on a prior poll of
           # this same hash - nothing left to do (matches the original,
@@ -2598,12 +2625,12 @@ EOF
                 paused)  handle_paused_stale "$w" "$task" "$h" ;;
                 working) clear_pause_state "$key"
                          printf '%s' "$h" > "$sf"
-                         wedge_timer_check "$w" "$ssf" "non-terminal stale (provably working after a declared pause)" "$ewf" "$task"
+                         wedge_timer_check "$w" "$ssf" "non-terminal stale (provably working after a declared pause)" "$ewf" "$task" stale
                          triage_log "absorbed non-terminal stale (provably working): $w" ;;
                 *)       handle_paused_stale "$w" "$task" "$h" ;;
               esac
             else
-              wedge_timer_check "$w" "$ssf" "non-terminal stale" "$ewf" "$task"
+              wedge_timer_check "$w" "$ssf" "non-terminal stale" "$ewf" "$task" stale
             fi
           fi
         fi

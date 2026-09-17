@@ -479,25 +479,37 @@ test_crew_absorb_class_classifier() {
   pass "crew_absorb_class: working/paused/none from one read; crew_is_paused and crew_is_provably_working agree"
 }
 
-# crew_is_validating: the live-run-step predicate the wedge path treats as a
-# declared wait the crew never had to write down. Deliberately NARROWER than
+# crew_is_validating: the live-and-moving-run-step predicate the wedge path treats
+# as a declared wait the crew never had to write down. Deliberately NARROWER than
 # crew_is_provably_working - a busy pane proves only that something is rendering,
 # so it keeps the unchanged wedge schedule, while an executing pipeline explains a
-# pane that renders nothing at all. The narrowing is self-enforcing because
-# fm-crew-state.sh maps a parked gate to `parked`, a failed or cancelled run to
-# `failed`, and a passed one to `done`: none of them can reach this predicate, so a
-# gate that needs firstmate is never silenced.
+# pane that renders nothing at all. Two conditions are load-bearing: `working` +
+# `run-step`, AND the `activity: recent` fact fm-crew-state.sh publishes from the
+# pipeline's own active-steps table. The second is what keeps a run record that
+# still says running while nothing executes it on the ordinary wedge schedule,
+# which matters because `working · run-step` is also what fm-crew-state.sh emits
+# for an empty or unrecognized status word and for the coarse ledger fallback.
 test_crew_is_validating_classifier() {
   local dir fakebin
   dir=$(make_case crew-validating); fakebin="$dir/fakebin"
   export FM_CREW_STATE_BIN="$fakebin/fm-crew-state.sh"
   export FM_FAKE_CREW_STATE
+  FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running) · activity: recent'
+  crew_is_validating a || fail "a running validation step with recent activity is not a live run step"
+  FM_FAKE_CREW_STATE='state: working · source: run-step · validating (fixing) · activity: recent'
+  crew_is_validating a || fail "a fixing validation step with recent activity is not a live run step"
+  FM_FAKE_CREW_STATE='state: working · source: run-step · ci running · activity: recent'
+  crew_is_validating a || fail "a running ci step with recent activity is not a live run step"
+  # The wedged-pipeline shape: the run record still says running, but the pipeline
+  # reports its own step quiet, so this falls through to the ordinary wedge path.
+  FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running) · activity: quiet'
+  ! crew_is_validating a || fail "a run step whose own activity went quiet was treated as moving"
+  FM_FAKE_CREW_STATE='state: working · source: run-step · validating (background run) · activity: quiet'
+  ! crew_is_validating a || fail "a coarse background run with no steps table was treated as moving"
+  FM_FAKE_CREW_STATE='state: working · source: run-step · run active (wat) · activity: quiet'
+  ! crew_is_validating a || fail "an unrecognized run status with no recency was treated as moving"
   FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running)'
-  crew_is_validating a || fail "a running validation step is not a live run step"
-  FM_FAKE_CREW_STATE='state: working · source: run-step · validating (fixing)'
-  crew_is_validating a || fail "a fixing validation step is not a live run step"
-  FM_FAKE_CREW_STATE='state: working · source: run-step · ci running'
-  crew_is_validating a || fail "a running ci step is not a live run step"
+  ! crew_is_validating a || fail "a line carrying no activity fact at all was treated as moving"
   FM_FAKE_CREW_STATE='state: working · source: pane · harness busy'
   ! crew_is_validating a || fail "a busy pane was treated as a live run step"
   FM_FAKE_CREW_STATE='state: working · source: status-log · working: compiling'
@@ -512,10 +524,10 @@ test_crew_is_validating_classifier() {
   ! crew_is_validating a || fail "a declared pause was treated as a live run step"
   FM_FAKE_CREW_STATE='state: unknown · source: none · worktree gone'
   ! crew_is_validating a || fail "an unreadable crew was treated as a live run step"
-  FM_FAKE_CREW_STATE='state: working · source: run-step · x'
+  FM_FAKE_CREW_STATE='state: working · source: run-step · x · activity: recent'
   ! crew_is_validating "" || fail "an empty id was treated as a live run step"
   unset FM_FAKE_CREW_STATE
-  pass "crew_is_validating: only working+run-step is a live run step; a busy pane, parked gate, failure, pause, or unknown crew is not"
+  pass "crew_is_validating: only a working run-step reporting recent activity qualifies; a quiet step, busy pane, parked gate, failure, pause, or unknown crew does not"
 }
 
 # The wedge detector's third liveness input: writes inside the crew's own recorded
@@ -1910,7 +1922,8 @@ test_stale_terminal_status_overridden_by_active_run() {
   pane_hash=$(hash_text "no-mistakes axi run: validating...")
   printf '%s' "$pane_hash" > "$state/.hash-$key"
   printf '1\n' > "$state/.count-$key"
-  export FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running)'
+  # The pipeline reports its own step moving, so the quiet pane is explained.
+  export FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running) · activity: recent'
 
   # Phase A: a high escalation threshold means the first sighting is absorbed,
   # not surfaced, despite the captain-relevant "done:" status-log line.
@@ -2030,6 +2043,44 @@ test_nonterminal_stale_provably_working_absorbed_then_escalated() {
   FM_STATE_OVERRIDE="$state" "$DRAIN" > "$drain_out" 2>/dev/null || fail "drain after the wedge escalation failed"
   grep "$(printf '\tstale\t')" "$drain_out" | grep -F "$window" >/dev/null || fail "wedge escalation was not queued"
   pass "a busy-pane non-terminal stale with no live run step is absorbed on first sight, then wedge-escalated past the threshold"
+}
+
+# --- run step recorded running but NOT moving: the ordinary wedge schedule -----
+# The other direction of the live-run deferral. `axi status` keeps reporting a step
+# `running` after its process is killed or hangs, so the state word alone would put
+# a genuinely wedged pipeline on the 4h recheck cadence forever. The pipeline's own
+# recency verdict (`activity: quiet`) is what stops that: the crew falls through to
+# the unchanged possible-wedge path on its ordinary STALE_ESCALATE_SECS schedule,
+# never waiting out a PAUSE_RESURFACE_SECS resurface.
+test_stale_quiet_run_step_escalates_on_the_ordinary_schedule() {
+  local dir state fakebin out capture_file window key pane_hash sig pid
+  dir=$(make_case stale-quiet-run-step); state="$dir/state"; fakebin="$dir/fakebin"
+  out="$dir/watch.out"; capture_file="$dir/pane.txt"; window="test:fm-quietrun"
+  printf 'idle building output' > "$capture_file"
+  printf 'window=%s\nkind=ship\n' "$window" > "$state/quietrun.meta"
+  printf 'working: still compiling\n' > "$state/quietrun.status"
+  sig=$(seen_sig "$state/quietrun.status"); printf '%s' "$sig" > "$state/.seen-quietrun_status"
+  key=$(printf '%s' "$window" | tr ':/.' '___')
+  pane_hash=$(hash_text "idle building output")
+  printf '%s' "$pane_hash" > "$state/.hash-$key"
+  printf '1\n' > "$state/.count-$key"
+  # The record still says running; the pipeline says its own step has gone quiet.
+  export FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running) · activity: quiet'
+
+  echo $(( $(date +%s) - 500 )) > "$state/.stale-since-$key"
+  printf '%s' "$pane_hash" > "$state/.stale-$key"
+  PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \
+    FM_STATE_OVERRIDE="$state" FM_CREW_STATE_BIN="$fakebin/fm-crew-state.sh" FM_STALE_ESCALATE_SECS=240 \
+    FM_PAUSE_RESURFACE_SECS=999999 FM_POLL=1 FM_SIGNAL_GRACE=1 \
+    FM_CHECK_INTERVAL=999999 FM_HEARTBEAT=999999 "$WATCH" > "$out" &
+  pid=$!
+  wait_for_exit "$pid" 100 || fail "a run step recorded running but reported quiet never wedge-escalated"
+  grep -F "stale: $window" "$out" >/dev/null || fail "the quiet run step printed no stale wake"
+  grep -F "possible wedge" "$out" >/dev/null || fail "the quiet run step was not flagged a possible wedge"
+  grep -F "validating for" "$out" >/dev/null && fail "the quiet run step was absorbed onto the long validation cadence"
+  [ ! -e "$state/.validating-since-$key" ] || fail "the quiet run step started a validation deferral chain"
+  unset FM_FAKE_CREW_STATE
+  pass "a run step recorded running whose own activity went quiet escalates on the ordinary wedge schedule"
 }
 
 # --- non-terminal stale, crew NOT provably working: surfaced immediately ------
@@ -3468,6 +3519,48 @@ test_busy_pane_stable_hash_escalates_past_turn_age_bound() {
   grep -F "stale: $window" "$out" >/dev/null || fail "busy turn-age escalation did not print the stale wake"
   grep -F "possible wedge" "$out" >/dev/null || fail "busy turn-age escalation did not flag a possible wedge"
   pass "a busy worker with a stable pane hash still escalates once its completed-turn age reaches the bound"
+}
+
+# The live-run-step deferral belongs to the QUIET-pane path only, and this pins
+# that boundary. The busy-turn bound exists because a hung foreground tool call can
+# hide behind a busy signature; a run record saying the pipeline is elsewhere does
+# not contradict that, so a busy pane past BUSY_TURN_MAX_SECS keeps the identical
+# stale reason, escalation count, and demand-deep-inspection marker it had before
+# the deferral existed - no matter how alive its run record looks.
+test_busy_turn_bound_ignores_a_live_run_step() {
+  local dir state fakebin out capture_file window key pane_hash sig pid
+  dir=$(make_case busy-turn-live-run); state="$dir/state"; fakebin="$dir/fakebin"
+  out="$dir/watch.out"; capture_file="$dir/pane.txt"; window="test:fm-busy-validating"
+  printf 'Working...' > "$capture_file"
+  printf 'window=%s\nkind=ship\nharness=pi\n' "$window" > "$state/busy-validating.meta"
+  record_pi_busy "$state" busy-validating
+  printf 'working: setup complete\n' > "$state/busy-validating.status"
+  sig=$(seen_sig "$state/busy-validating.status"); printf '%s' "$sig" > "$state/.seen-busy-validating_status"
+  key=$(printf '%s' "$window" | tr ':/.' '___')
+  pane_hash=$(hash_text "Working...")
+  printf '%s' "$pane_hash" > "$state/.hash-$key"
+  printf '1\n' > "$state/.count-$key"
+  # No completed turn ever recorded for this task: age the spawn record itself.
+  touch -t 200001010000 "$state/busy-validating.meta"
+  # The most deferral-friendly verdict there is - and the pane declares no wait, so
+  # nothing else can absorb the crossed bound.
+  export FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running) · activity: recent'
+
+  echo $(( $(date +%s) - 500 )) > "$state/.stale-since-$key"
+  PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \
+    FM_STATE_OVERRIDE="$state" FM_CREW_STATE_BIN="$fakebin/fm-crew-state.sh" \
+    FM_BUSY_TURN_MAX_SECS=1 FM_STALE_ESCALATE_SECS=240 FM_PAUSE_RESURFACE_SECS=3600 \
+    FM_POLL=1 FM_SIGNAL_GRACE=1 FM_CHECK_INTERVAL=999999 FM_HEARTBEAT=999999 "$WATCH" > "$out" &
+  pid=$!
+  wait_for_exit "$pid" 100 || fail "a busy pane past the turn bound was absorbed by the live-run deferral"
+  grep -F "stale: $window" "$out" >/dev/null || fail "the crossed busy-turn bound printed no stale wake"
+  grep -F "possible wedge" "$out" >/dev/null || fail "the crossed busy-turn bound lost its possible-wedge reason"
+  grep -F "validating for" "$out" >/dev/null && fail "the crossed busy-turn bound took the validation recheck cadence"
+  [ ! -e "$state/.validating-since-$key" ] || fail "the crossed busy-turn bound started a validation deferral chain"
+  [ "$(cat "$state/.wedge-escalations-$key" 2>/dev/null || echo 0)" = 1 ] \
+    || fail "the crossed busy-turn bound did not advance its escalation count"
+  unset FM_FAKE_CREW_STATE
+  pass "a busy pane past the turn-age bound still wedge-escalates even with a live, moving run step"
 }
 
 # Regression fixture for the incident's actual masking condition: Pi's rendered
@@ -5230,10 +5323,12 @@ test_permission_recovery_surfaces_preserved_status
 test_terminal_stale_surfaced
 test_stale_terminal_status_overridden_by_active_run
 test_nonterminal_stale_provably_working_absorbed_then_escalated
+test_stale_quiet_run_step_escalates_on_the_ordinary_schedule
 test_wedge_escalation_marks_demand_deep_inspection_after_threshold
 test_wedge_escalation_resets_when_pane_becomes_active
 test_busy_pane_below_turn_age_bound_is_absorbed
 test_busy_pane_stable_hash_escalates_past_turn_age_bound
+test_busy_turn_bound_ignores_a_live_run_step
 test_busy_pane_changing_hash_escalates_past_turn_age_bound
 test_busy_pane_turn_end_touch_resets_age
 test_busy_pane_native_progress_resets_age

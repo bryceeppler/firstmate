@@ -787,7 +787,7 @@ test_stale_validating_run_step_defers_instead_of_wedging() {
   echo $(( $(date +%s) - 500 )) > "$state/.subsuper-stale-$key"
 
   PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$win" FM_FAKE_TMUX_CAPTURE="$pane" \
-    FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running)' \
+    FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running) · activity: recent' \
     FM_STATE_OVERRIDE="$state" FM_ESCALATE_BATCH_SECS=999999 \
     FM_STALE_ESCALATE_SECS=240 FM_PAUSE_RESURFACE_SECS=3600 housekeeping "$state"
 
@@ -830,6 +830,35 @@ test_stale_parked_gate_still_wedges() {
   pass "a parked approval gate still escalates as a possible wedge"
 }
 
+# The other half of the narrowing, and the reason genuine wedge detection is not
+# lost: `axi status` keeps reporting a step `running` after its process is killed
+# or hangs, so the state word alone would hold a wedged pipeline on the 4h recheck
+# cadence forever. The pipeline's own recency verdict is what the deferral requires,
+# so a run recorded running whose activity has gone quiet keeps the ordinary
+# FM_STALE_ESCALATE_SECS wedge schedule.
+test_stale_quiet_run_step_still_wedges() {
+  local dir state fakebin task win pane key
+  dir=$(make_supercase stale-quiet-run-step)
+  state="$dir/state"; fakebin="$dir/fakebin"
+  task=quietrun-v4; win="sess:fm-$task"; pane="$dir/pane.txt"
+  key=$(printf '%s' "$task" | tr ':/.' '___')
+  fm_write_meta "$state/$task.meta" "window=$win" "backend=tmux"
+  printf 'working: dispatching the implementation\n' > "$state/$task.status"
+  printf 'idle prompt $\n' > "$pane"
+  echo $(( $(date +%s) - 500 )) > "$state/.subsuper-stale-$key"
+
+  PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$win" FM_FAKE_TMUX_CAPTURE="$pane" \
+    FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running) · activity: quiet' \
+    FM_STATE_OVERRIDE="$state" FM_ESCALATE_BATCH_SECS=999999 \
+    FM_STALE_ESCALATE_SECS=240 FM_PAUSE_RESURFACE_SECS=3600 housekeeping "$state"
+
+  grep -F "possible wedge" "$state/.subsuper-escalations" >/dev/null \
+    || fail "a run recorded running but reported quiet was absorbed as a live validation run: $(cat "$state/.subsuper-escalations" 2>/dev/null)"
+  [ ! -e "$state/.subsuper-validating-$key" ] \
+    || fail "a quiet run step recorded validation deferral tracking"
+  pass "a run step recorded running whose own activity went quiet still escalates as a possible wedge"
+}
+
 # The deferral is bounded, not unbounded silence: a run that outlives any real one
 # re-surfaces once per PAUSE_RESURFACE_SECS as a recheck (never a wedge) so a
 # genuinely stuck validation still reaches the captain.
@@ -846,7 +875,7 @@ test_stale_validating_resurfaces_on_pause_cadence() {
   echo $(( $(date +%s) - 5000 )) > "$state/.subsuper-validating-$key"
 
   PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$win" FM_FAKE_TMUX_CAPTURE="$pane" \
-    FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running)' \
+    FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running) · activity: recent' \
     FM_STATE_OVERRIDE="$state" FM_ESCALATE_BATCH_SECS=999999 \
     FM_STALE_ESCALATE_SECS=240 FM_PAUSE_RESURFACE_SECS=3600 housekeeping "$state"
 
@@ -2898,6 +2927,7 @@ test_stale_diagnostic_wedge_survives_busy_housekeeping
 test_enriched_wedge_under_declared_wait_uses_pause_cadence
 test_stale_validating_run_step_defers_instead_of_wedging
 test_stale_parked_gate_still_wedges
+test_stale_quiet_run_step_still_wedges
 test_stale_validating_resurfaces_on_pause_cadence
 test_stale_terminal_escalates
 test_stale_actionable_wait_escalates_and_keeps_pause_cadence
