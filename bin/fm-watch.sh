@@ -51,10 +51,12 @@
 #                          worktree was written during the quiet window is
 #                          deferred rather than escalated (wedge_defer_writing),
 #                          because files appearing there are liveness the pane and
-#                          the run step cannot show. Every one of those deferrals
-#                          still re-surfaces once per PAUSE_RESURFACE_SECS, and a
-#                          pane with no live run step and no writes keeps the
-#                          unchanged schedule.
+#                          the run step cannot show. Those two deferrals share one
+#                          .defer-since-<key> anchor covering the whole quiet
+#                          window, whichever kind takes any given threshold, so a
+#                          window that alternates between them still re-surfaces
+#                          once per PAUSE_RESURFACE_SECS, and a pane with no live
+#                          run step and no writes keeps the unchanged schedule.
 #                          A genuinely busy pane
 #                          (window_is_busy true) is exempt from the above, but
 #                          only up to BUSY_TURN_MAX_SECS with no completed turn
@@ -901,27 +903,21 @@ resurface_absorbed() {  # <window> <throttle-marker> <age> <reason> [scope] [min
 # the worktree says otherwise, and files appearing in it is the harder signal to
 # fake, so the escalation is deferred rather than fired. Deliberately a DEFERRAL,
 # not a cancellation: the idle timer restarts, so the next window probes again,
-# and a .writing-since-<key> marker ages the whole deferral chain so the pane
-# still re-surfaces once every PAUSE_RESURFACE_SECS through the shared
+# and the window's shared .defer-since-<key> anchor ages the whole quiet stretch
+# so the pane still re-surfaces once every PAUSE_RESURFACE_SECS through the shared
 # resurface_absorbed above - literally the same bounded cadence a declared pause
-# uses, throttled by its own .writing-resurfaced-<key> marker - and a crew whose
-# worktree churns without real progress cannot stay invisible. The escalation
-# counter is left alone: it is neither advanced (this is not an escalation) nor
-# reset (a later genuine escalation must still carry the demand-deep-inspection
-# history it had already earned).
+# uses, throttled by the window's own .defer-resurfaced-<key> marker - and a
+# crew whose worktree churns without real progress cannot stay invisible. The
+# escalation counter is left alone: it is neither advanced (this is not an
+# escalation) nor reset (a later genuine escalation must still carry the
+# demand-deep-inspection history it had already earned).
 wedge_defer_writing() {  # <window> <since-file> <triage-label> <idle-age>
-  local win=$1 since_file=$2 label=$3 age=$4 key wsf wage
+  local win=$1 since_file=$2 label=$3 age=$4 key qage
   key=$(window_key "$win")
-  # Drop the sibling chain first: one continuous quiet window can alternate
-  # deferral kinds, and a marker anchored by a deferral that no longer applies
-  # would otherwise report the whole window as this deferral's age.
-  clear_validating_chain "$key"
-  wsf="$STATE/.writing-since-$key"
-  [ -e "$wsf" ] || date +%s > "$wsf"
-  wage=$(age_of "$wsf")
+  qage=$(defer_window_age "$key")
   date +%s > "$since_file"
-  resurface_absorbed "$win" "$STATE/.writing-resurfaced-$key" "$wage" \
-    "stale: $win (idle ${age}s, writing its worktree for ${wage}s, rechecked on a long cadence not a wedge; confirm the writes are real progress)"
+  resurface_absorbed "$win" "$STATE/.defer-resurfaced-$key" "$qage" \
+    "stale: $win (idle ${age}s, deferred for ${qage}s, writing its worktree right now, rechecked on a long cadence not a wedge; confirm the writes are real progress)"
   triage_log "absorbed $label (worktree written since the idle window opened, idle ${age}s): $win"
 }
 
@@ -933,26 +929,21 @@ wedge_defer_writing() {  # <window> <since-file> <triage-label> <idle-age>
 # Deliberately the same DEFERRAL shape as wedge_defer_writing: the idle timer
 # restarts, so a run that ends while the pane stays quiet escalates within one
 # STALE_ESCALATE_SECS and the worst-case detection time for a genuinely wedged pane
-# does not move. A .validating-since-<key> marker ages the whole deferral chain so
-# the pane still re-surfaces once every PAUSE_RESURFACE_SECS through the shared
-# resurface_absorbed above, throttled by its own .validating-resurfaced-<key>
-# marker: a run that outlives any real one cannot stay invisible.
+# does not move. The window's shared .defer-since-<key> anchor ages the whole quiet
+# stretch so the pane still re-surfaces once every PAUSE_RESURFACE_SECS through the
+# shared resurface_absorbed above, throttled by the window's own
+# .defer-resurfaced-<key> marker: a run that outlives any real one cannot stay
+# invisible.
 # The escalation counter is left alone for the same reason the write deferral
 # leaves it: this is not an escalation, and a later genuine one must keep the
 # demand-deep-inspection history it had already earned.
 wedge_defer_validating() {  # <window> <since-file> <triage-label> <idle-age>
-  local win=$1 since_file=$2 label=$3 age=$4 key vsf vage
+  local win=$1 since_file=$2 label=$3 age=$4 key qage
   key=$(window_key "$win")
-  # Drop the sibling chain first, for the same reason wedge_defer_writing does:
-  # a write deferral earlier in this same quiet window must not lend its age to
-  # the run that is deferring now.
-  clear_write_chain "$key"
-  vsf="$STATE/.validating-since-$key"
-  [ -e "$vsf" ] || date +%s > "$vsf"
-  vage=$(age_of "$vsf")
+  qage=$(defer_window_age "$key")
   date +%s > "$since_file"
-  resurface_absorbed "$win" "$STATE/.validating-resurfaced-$key" "$vage" \
-    "stale: $win (idle ${age}s, validating for ${vage}s, rechecked on a long cadence not a wedge; confirm the validation run is still moving)"
+  resurface_absorbed "$win" "$STATE/.defer-resurfaced-$key" "$qage" \
+    "stale: $win (idle ${age}s, deferred for ${qage}s, validating right now, rechecked on a long cadence not a wedge; confirm the validation run is still moving)"
   triage_log "absorbed $label (a live validation run explains the quiet, idle ${age}s): $win"
 }
 
@@ -1056,29 +1047,29 @@ wedge_defer_wait() {  # <window> <task> <since-file> <triage-label> <idle-age> <
   triage_log "absorbed $label (the pane's own wait explains the quiet, idle ${age}s): $win"
 }
 
-# The two marker-anchored deferral chains, each owning its own filenames so the
-# deferral that takes a quiet window can drop the other's markers without
-# restating them. A chain is its since-marker (what the re-surface cadence is
-# measured from) plus its own re-surface throttle.
-clear_write_chain() {  # <window-key>
-  rm -f "$STATE/.writing-since-$1" "$STATE/.writing-resurfaced-$1"
+# How long the CURRENT quiet window has been deferred, anchored the first time
+# either deferral takes it and never re-anchored while that window stands. The
+# anchor is the window's, not the evidence kind's: one continuous quiet stretch can
+# alternate between write evidence and a live run step, and an anchor owned by the
+# kind would restart at every switch, so the bounded re-surface below could never
+# be reached by a validation run that also writes files.
+defer_window_age() {  # <window-key>
+  local anchor="$STATE/.defer-since-$1"
+  [ -e "$anchor" ] || date +%s > "$anchor"
+  age_of "$anchor"
 }
 
-clear_validating_chain() {  # <window-key>
-  rm -f "$STATE/.validating-since-$1" "$STATE/.validating-resurfaced-$1"
-}
-
-# Drop BOTH of a window's deferral chains wherever its stale bookkeeping resets, so
-# the bounded re-surface cadence is measured from the CURRENT quiet stretch and a
-# long-finished one cannot make the next deferral resurface immediately. Both chains
-# reset together because both are anchored on a marker this watcher wrote, and a
-# reset that kept one of them would carry the old quiet stretch into the new window.
+# Drop the window's deferral anchor and its re-surface throttle wherever its stale
+# bookkeeping resets, so the bounded cadence is measured from the CURRENT quiet
+# stretch and a long-finished one cannot make the next deferral resurface
+# immediately. Both belong to the window rather than to the evidence kind, so the
+# cadence counts re-surfaces of the quiet window itself: which evidence took any
+# given threshold is carried by the recheck's own reason, not by a second marker
+# that would let an alternating window wake twice inside one cadence.
 # The wait deferral is not here: it is anchored on the worker's own status-file
 # mtime, so it has no marker to age (clear_stale_hash_tracking drops its throttle).
 clear_defer_tracking() {  # <window-key>
-  local key=$1
-  clear_write_chain "$key"
-  clear_validating_chain "$key"
+  rm -f "$STATE/.defer-since-$1" "$STATE/.defer-resurfaced-$1"
 }
 
 # Repeat-poll wedge-timer bookkeeping for an already-classified stale hash
@@ -1110,8 +1101,8 @@ wedge_timer_check() {  # <window> <since-file> <triage-label> <escalation-count-
   since=$(cat "$since_file" 2>/dev/null || true)
   case "$since" in
     ''|*[!0-9]*)
-      # Publish the repaired timer only after its old write-deferral chain is
-      # gone, so observers cannot mistake a new idle window for the old chain.
+      # Publish the repaired timer only after the old window's deferral anchor is
+      # gone, so observers cannot mistake a new idle window for the old one.
       clear_defer_tracking "$(window_key "$win")"
       date +%s > "$since_file"
       triage_log "absorbed $label timer reset: $win"
@@ -1255,7 +1246,7 @@ busy_turn_bound_check() {  # <window> <task> <hash> <since-file> <escalation-fil
       # woken in a loop for the whole declared wait. The suppressor therefore
       # advances to the declaration rather than the hash, and the daemon is woken
       # once per distinct declaration. The wedge timer, escalation count and
-      # deferral chains are cleared exactly as handle_paused_stale clears
+      # deferral anchor are cleared exactly as handle_paused_stale clears
       # them, so an undeclared busy phase that had already started the timer does
       # not resume its count the moment the declaration is lifted. Normal-mode
       # pause tracking stays unwritten here, exactly as the idle away-mode handoff
@@ -1289,9 +1280,9 @@ clear_pause_state() {  # <window-key>
 }
 
 # The hash-scoped half of clear_pause_tracking: the stale suppressor, its wedge
-# timer and escalation count, and every deferral chain the timer can take - the
-# write and live-validation chains (clear_defer_tracking) plus the wait-deferral
-# throttle. Split out so a caller
+# timer and escalation count, and every deferral the timer can take - the shared
+# quiet-window anchor and both re-surface throttles (clear_defer_tracking) plus the
+# wait-deferral throttle. Split out so a caller
 # that must keep a window's DECLARATION-scoped pause state - its .paused-* flag,
 # recheck, and re-surface throttle - can still reset the per-hash half alone.
 clear_stale_hash_tracking() {  # <window-key>

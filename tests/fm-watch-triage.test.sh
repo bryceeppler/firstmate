@@ -1959,7 +1959,7 @@ test_stale_terminal_status_overridden_by_active_run() {
   fi
   [ ! -s "$out" ] || { reap "$pid"; fail "a live validation run printed a wedge wake: $(cat "$out")"; }
   [ ! -s "$state/.wake-queue" ] || { reap "$pid"; fail "a live validation run enqueued a wedge wake"; }
-  [ -e "$state/.validating-since-$key" ] \
+  [ -e "$state/.defer-since-$key" ] \
     || { reap "$pid"; fail "the deferral recorded no chain marker, so it could never re-surface"; }
   # Deferral, not cancellation: the idle timer restarts, so a run that ENDS while the
   # pane stays quiet still escalates within one FM_STALE_ESCALATE_SECS.
@@ -1971,7 +1971,7 @@ test_stale_terminal_status_overridden_by_active_run() {
   # Phase C: the deferral is bounded. Age the chain past PAUSE_RESURFACE_SECS and a
   # run that outlives any real one re-surfaces once - as a recheck naming the run,
   # never as a possible wedge.
-  set_mtime "$(( $(date +%s) - 5000 ))" "$state/.validating-since-$key"
+  set_mtime "$(( $(date +%s) - 5000 ))" "$state/.defer-since-$key"
   echo $(( $(date +%s) - 500 )) > "$state/.stale-since-$key"
   : > "$out"
   PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \
@@ -1981,7 +1981,7 @@ test_stale_terminal_status_overridden_by_active_run() {
   pid=$!
   wait_for_exit "$pid" 100 || fail "a validation run outliving the bounded window never re-surfaced"
   grep -F "stale: $window" "$out" >/dev/null || fail "the bounded re-surface printed no stale wake"
-  grep -F "validating for" "$out" >/dev/null || fail "the bounded re-surface did not name the validation run"
+  grep -F "validating right now" "$out" >/dev/null || fail "the bounded re-surface did not name the validation run"
   grep -F "possible wedge" "$out" >/dev/null && fail "the bounded re-surface was mislabeled a possible wedge"
   unset FM_FAKE_CREW_STATE
   pass "a stale terminal-looking status is overridden while a run is actively working, deferred rather than wedged, and re-surfaced on the bounded cadence"
@@ -2077,8 +2077,8 @@ test_stale_quiet_run_step_escalates_on_the_ordinary_schedule() {
   wait_for_exit "$pid" 100 || fail "a run step recorded running but reported quiet never wedge-escalated"
   grep -F "stale: $window" "$out" >/dev/null || fail "the quiet run step printed no stale wake"
   grep -F "possible wedge" "$out" >/dev/null || fail "the quiet run step was not flagged a possible wedge"
-  grep -F "validating for" "$out" >/dev/null && fail "the quiet run step was absorbed onto the long validation cadence"
-  [ ! -e "$state/.validating-since-$key" ] || fail "the quiet run step started a validation deferral chain"
+  grep -F "validating right now" "$out" >/dev/null && fail "the quiet run step was absorbed onto the long validation cadence"
+  [ ! -e "$state/.defer-since-$key" ] || fail "the quiet run step started a validation deferral chain"
   unset FM_FAKE_CREW_STATE
   pass "a run step recorded running whose own activity went quiet escalates on the ordinary wedge schedule"
 }
@@ -3555,8 +3555,8 @@ test_busy_turn_bound_ignores_a_live_run_step() {
   wait_for_exit "$pid" 100 || fail "a busy pane past the turn bound was absorbed by the live-run deferral"
   grep -F "stale: $window" "$out" >/dev/null || fail "the crossed busy-turn bound printed no stale wake"
   grep -F "possible wedge" "$out" >/dev/null || fail "the crossed busy-turn bound lost its possible-wedge reason"
-  grep -F "validating for" "$out" >/dev/null && fail "the crossed busy-turn bound took the validation recheck cadence"
-  [ ! -e "$state/.validating-since-$key" ] || fail "the crossed busy-turn bound started a validation deferral chain"
+  grep -F "validating right now" "$out" >/dev/null && fail "the crossed busy-turn bound took the validation recheck cadence"
+  [ ! -e "$state/.defer-since-$key" ] || fail "the crossed busy-turn bound started a validation deferral chain"
   [ "$(cat "$state/.wedge-escalations-$key" 2>/dev/null || echo 0)" = 1 ] \
     || fail "the crossed busy-turn bound did not advance its escalation count"
   unset FM_FAKE_CREW_STATE
@@ -3966,7 +3966,7 @@ SH
   # before the crew declared the wait.
   echo $(( $(date +%s) - 500 )) > "$state/.stale-since-$key"
   printf '2\n' > "$state/.wedge-escalations-$key"
-  date +%s > "$state/.writing-since-$key"
+  date +%s > "$state/.defer-since-$key"
 
   # Round 1: the declaration is handed off once, undecorated, and the undeclared
   # phase's wedge bookkeeping is cleared with it.
@@ -3986,7 +3986,7 @@ SH
     || fail "the away-mode handoff left the undeclared phase's wedge timer in place"
   [ ! -e "$state/.wedge-escalations-$key" ] \
     || fail "the away-mode handoff left the undeclared phase's escalation count in place"
-  [ ! -e "$state/.writing-since-$key" ] \
+  [ ! -e "$state/.defer-since-$key" ] \
     || fail "the away-mode handoff left the undeclared phase's write-deferral chain in place"
   [ ! -e "$state/.paused-$key" ] \
     || fail "the away-mode handoff recorded normal-mode pause tracking on a ticking pane"
@@ -4167,7 +4167,7 @@ test_wedge_escalation_deferred_while_worktree_is_written() {
   fi
   [ ! -s "$out" ] || { reap "$pid"; fail "a written-worktree deferral printed a wake reason: $(cat "$out")"; }
   [ ! -s "$state/.wake-queue" ] || { reap "$pid"; fail "a written-worktree deferral enqueued a wake"; }
-  [ -e "$state/.writing-since-$key" ] || { reap "$pid"; fail "the write-deferral chain marker was not recorded"; }
+  [ -e "$state/.defer-since-$key" ] || { reap "$pid"; fail "the write-deferral chain marker was not recorded"; }
   [ ! -e "$state/.wedge-escalations-$key" ] || { reap "$pid"; fail "a deferral advanced the wedge escalation counter"; }
   [ "$(cat "$state/.stale-since-$key" 2>/dev/null || echo 0)" -gt "$back" ] \
     || { reap "$pid"; fail "a deferral did not restart the idle timer, so the next window cannot re-probe"; }
@@ -4190,7 +4190,7 @@ test_wedge_escalation_deferred_while_worktree_is_written() {
   grep -F "possible wedge" "$out" >/dev/null || fail "the stalled-crew escalation did not flag a possible wedge"
   [ "$(cat "$state/.wedge-escalations-$key" 2>/dev/null || true)" = 1 ] || fail "the stalled-crew escalation was not counted"
   [ ! -e "$state/.stale-since-$key" ] || fail "the idle timer was not cleared after a real escalation"
-  [ ! -e "$state/.writing-since-$key" ] || fail "the write-deferral chain outlived a real escalation"
+  [ ! -e "$state/.defer-since-$key" ] || fail "the write-deferral chain outlived a real escalation"
   FM_STATE_OVERRIDE="$state" "$DRAIN" > "$drain_out" 2>/dev/null || fail "drain after the stalled-crew escalation failed"
   grep "$(printf '\tstale\t')" "$drain_out" | grep -F "$window" >/dev/null || fail "the stalled-crew escalation was not queued"
   pass "a quiet pane writing its own worktree is deferred, while one writing nothing still wedge-escalates on the unchanged schedule"
@@ -4219,8 +4219,8 @@ test_write_deferral_resurfaces_on_the_bounded_cadence() {
   echo "$back" > "$state/.stale-since-$key"
   set_mtime "$back" "$state/.stale-since-$key"
   # This pane has been deferring on write evidence for 500s already.
-  : > "$state/.writing-since-$key"
-  set_mtime "$back" "$state/.writing-since-$key"
+  : > "$state/.defer-since-$key"
+  set_mtime "$back" "$state/.defer-since-$key"
   printf 'churn\n' > "$wt/src/main.c"
 
   PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \
@@ -4232,11 +4232,122 @@ test_write_deferral_resurfaces_on_the_bounded_cadence() {
   grep -F "stale: $window" "$out" >/dev/null || fail "the write-deferral recheck did not print a stale wake"
   grep -F "writing its worktree" "$out" >/dev/null || fail "the write-deferral recheck was not labeled as such"
   grep -F "possible wedge" "$out" >/dev/null && fail "a write-deferral recheck was mislabeled a possible wedge"
-  [ -e "$state/.writing-resurfaced-$key" ] || fail "the write-deferral re-surface throttle marker was not recorded"
+  [ -e "$state/.defer-resurfaced-$key" ] || fail "the write-deferral re-surface throttle marker was not recorded"
   [ ! -e "$state/.wedge-escalations-$key" ] || fail "a write-deferral recheck advanced the wedge escalation counter"
   FM_STATE_OVERRIDE="$state" "$DRAIN" > "$drain_out" 2>/dev/null || fail "drain after the write-deferral recheck failed"
   grep "$(printf '\tstale\t')" "$drain_out" | grep -F "$window" >/dev/null || fail "the write-deferral recheck was not queued"
   pass "a write deferral re-surfaces once on the bounded pause cadence, so a churning worktree cannot stay invisible"
+}
+
+# The bounded re-surface belongs to the QUIET WINDOW, not to whichever evidence
+# happens to explain any single threshold. A real validation run alternates: the
+# pipeline's step is moving at one threshold, has gone quiet between steps at the
+# next while the files it just wrote are the only liveness left, and is moving
+# again after that. Anchoring the cadence per evidence kind restarted it at every
+# switch, so a pane that alternated could be absorbed indefinitely and never reach
+# PAUSE_RESURFACE_SECS at all - the exact opposite of the bound both deferrals
+# promise. One anchor for the window, kept across the switches, and one throttle so
+# the window wakes once per cadence rather than once per kind.
+test_alternating_deferrals_keep_one_bounded_resurface_window() {
+  local dir state fakebin out capture_file window key pane_hash sig pid wt back anchor_age
+  dir=$(make_case wedge-defer-alternating); state="$dir/state"; fakebin="$dir/fakebin"
+  out="$dir/watch.out"; capture_file="$dir/pane.txt"
+  window="test:fm-alternating"; wt="$dir/wt"
+  mkdir -p "$wt/src"
+  printf 'idle building output' > "$capture_file"
+  printf 'window=%s\nkind=ship\nworktree=%s\n' "$window" "$wt" > "$state/alternating.meta"
+  printf 'working: implementing\n' > "$state/alternating.status"
+  sig=$(seen_sig "$state/alternating.status"); printf '%s' "$sig" > "$state/.seen-alternating_status"
+  key=$(printf '%s' "$window" | tr ':/.' '___')
+  pane_hash=$(hash_text "idle building output")
+  printf '%s' "$pane_hash" > "$state/.hash-$key"
+  printf '1\n' > "$state/.count-$key"
+  # One continuous quiet window throughout: the pane hash never changes, so no
+  # reset path fires and every threshold below belongs to the same stretch.
+  printf '%s' "$pane_hash" > "$state/.stale-$key"
+  reopen_threshold() {
+    back=$(( $(date +%s) - 500 ))
+    echo "$back" > "$state/.stale-since-$key"
+    set_mtime "$back" "$state/.stale-since-$key"
+  }
+
+  # Threshold 1: the pipeline's own step is moving, so the run takes the window
+  # and anchors it.
+  reopen_threshold
+  PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \
+    FM_STATE_OVERRIDE="$state" FM_CREW_STATE_BIN="$fakebin/fm-crew-state.sh" \
+    FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running) · activity: recent' \
+    FM_STALE_ESCALATE_SECS=240 FM_PAUSE_RESURFACE_SECS=240 FM_POLL=1 FM_SIGNAL_GRACE=1 \
+    FM_CHECK_INTERVAL=999999 FM_HEARTBEAT=999999 "$WATCH" > "$out" &
+  pid=$!
+  wait_poll_cycle "$state" "$pid" \
+    || { reap "$pid"; fail "a live validation run was wedge-escalated instead of deferred: $(cat "$out")"; }
+  [ ! -s "$out" ] || { reap "$pid"; fail "the first deferral of the window printed a wake reason: $(cat "$out")"; }
+  [ -e "$state/.defer-since-$key" ] \
+    || { reap "$pid"; fail "the first deferral anchored no quiet window, so it could never re-surface"; }
+  reap "$pid"
+  ack_stopped_cycle "$state" || fail "could not acknowledge the intentional threshold-1 watcher stop"
+
+  # The window has now been deferred for 200s - still inside the cadence.
+  set_mtime "$(( $(date +%s) - 200 ))" "$state/.defer-since-$key"
+
+  # Threshold 2: the step between runs has gone quiet, so the files it wrote are
+  # the only liveness left and the write probe takes the same window.
+  reopen_threshold
+  printf 'int main(void) { return 0; }\n' > "$wt/src/main.c"
+  : > "$out"
+  PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \
+    FM_STATE_OVERRIDE="$state" FM_CREW_STATE_BIN="$fakebin/fm-crew-state.sh" \
+    FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running) · activity: quiet' \
+    FM_STALE_ESCALATE_SECS=240 FM_PAUSE_RESURFACE_SECS=240 FM_POLL=1 FM_SIGNAL_GRACE=1 \
+    FM_CHECK_INTERVAL=999999 FM_HEARTBEAT=999999 "$WATCH" > "$out" &
+  pid=$!
+  wait_poll_cycle "$state" "$pid" \
+    || { reap "$pid"; fail "a written worktree was wedge-escalated instead of deferred: $(cat "$out")"; }
+  [ ! -s "$out" ] || { reap "$pid"; fail "switching deferral kind printed a wake reason: $(cat "$out")"; }
+  anchor_age=$(( $(date +%s) - $(file_mtime "$state/.defer-since-$key") ))
+  [ "$anchor_age" -ge 150 ] \
+    || { reap "$pid"; fail "the write deferral re-anchored the quiet window at ${anchor_age}s, discarding the 200s it had already run"; }
+  reap "$pid"
+  ack_stopped_cycle "$state" || fail "could not acknowledge the intentional threshold-2 watcher stop"
+
+  # Threshold 3: the next step starts and the run takes the window back, now past
+  # the cadence. The window re-surfaces once, naming the evidence that holds it.
+  set_mtime "$(( $(date +%s) - 300 ))" "$state/.defer-since-$key"
+  reopen_threshold
+  : > "$out"
+  PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \
+    FM_STATE_OVERRIDE="$state" FM_CREW_STATE_BIN="$fakebin/fm-crew-state.sh" \
+    FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running) · activity: recent' \
+    FM_STALE_ESCALATE_SECS=240 FM_PAUSE_RESURFACE_SECS=240 FM_POLL=1 FM_SIGNAL_GRACE=1 \
+    FM_CHECK_INTERVAL=999999 FM_HEARTBEAT=999999 "$WATCH" > "$out" &
+  pid=$!
+  wait_for_exit "$pid" 100 \
+    || { reap "$pid"; fail "an alternating quiet window never reached its bounded re-surface: $(cat "$out")"; }
+  grep -F "stale: $window" "$out" >/dev/null || fail "the bounded re-surface printed no stale wake"
+  grep -F "validating right now" "$out" >/dev/null || fail "the re-surface did not name the evidence holding the window"
+  grep -F "possible wedge" "$out" >/dev/null && fail "the bounded re-surface was mislabeled a possible wedge"
+  [ -e "$state/.defer-resurfaced-$key" ] || fail "the re-surface armed no throttle"
+  [ ! -e "$state/.wedge-escalations-$key" ] || fail "a bounded re-surface advanced the wedge escalation counter"
+  ack_stopped_cycle "$state" || fail "could not acknowledge the bounded re-surface"
+
+  # Threshold 4: the kind switches back again inside the same cadence. Once per
+  # PAUSE_RESURFACE_SECS means once for the window, not once for each kind.
+  reopen_threshold
+  printf 'int main(void) { return 1; }\n' > "$wt/src/main.c"
+  : > "$out"
+  PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \
+    FM_STATE_OVERRIDE="$state" FM_CREW_STATE_BIN="$fakebin/fm-crew-state.sh" \
+    FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running) · activity: quiet' \
+    FM_STALE_ESCALATE_SECS=240 FM_PAUSE_RESURFACE_SECS=240 FM_POLL=1 FM_SIGNAL_GRACE=1 \
+    FM_CHECK_INTERVAL=999999 FM_HEARTBEAT=999999 "$WATCH" > "$out" &
+  pid=$!
+  wait_poll_cycle "$state" "$pid" \
+    || { reap "$pid"; fail "the window re-surfaced a second time inside one cadence: $(cat "$out")"; }
+  [ ! -s "$out" ] || { reap "$pid"; fail "a second re-surface fired for the other deferral kind: $(cat "$out")"; }
+  reap "$pid"
+  unset -f reopen_threshold
+  pass "a quiet window that alternates deferral kinds keeps one anchor and re-surfaces once per bounded cadence"
 }
 
 # The worktree recorded for a secondmate is a provisioned firstmate home, and that
@@ -4281,19 +4392,19 @@ test_secondmate_home_supervision_churn_is_not_write_evidence() {
   wait_for_exit "$pid" 100 || fail "a mate home's own supervision churn deferred an escalation it must not defer"
   grep -F "stale: $window" "$out" >/dev/null || fail "the mate-home escalation did not print a stale wake"
   grep -F "possible wedge" "$out" >/dev/null || fail "the mate-home escalation did not flag a possible wedge"
-  [ ! -e "$state/.writing-since-$key" ] || fail "a mate's provisioned home was probed as if it were a code tree"
+  [ ! -e "$state/.defer-since-$key" ] || fail "a mate's provisioned home was probed as if it were a code tree"
   [ "$(cat "$state/.wedge-escalations-$key" 2>/dev/null || true)" = 1 ] || fail "the mate escalation was not counted"
   FM_STATE_OVERRIDE="$state" "$DRAIN" > "$drain_out" 2>/dev/null || fail "drain after the mate escalation failed"
   grep "$(printf '\tstale\t')" "$drain_out" | grep -F "$window" >/dev/null || fail "the mate escalation was not queued"
   pass "a secondmate's own home supervision churn is not crew write evidence, so a pane recording that home keeps the unchanged escalation schedule"
 }
 
-# A write deferral is a bounded chain, not a permanent one: its .writing-since
-# marker ages the whole chain so a churning worktree still re-surfaces once per
-# PAUSE_RESURFACE_SECS. That only holds while the chain belongs to the CURRENT quiet
+# A write deferral is bounded, not permanent: the quiet window's .defer-since anchor
+# ages the whole stretch so a churning worktree still re-surfaces once per
+# PAUSE_RESURFACE_SECS. That only holds while the anchor belongs to the CURRENT quiet
 # stretch, so every path that restarts the idle-window timer must drop it too. The
 # reachable case is a pane that deferred on write evidence and later has its timer
-# repaired: a long-finished chain would make the first deferral of the new window
+# repaired: a long-finished anchor would make the first deferral of the new window
 # re-surface immediately instead of after a fresh window.
 test_timer_repair_drops_a_finished_write_deferral_chain() {
   local dir state fakebin out capture_file window key pane_hash sig pid wt back
@@ -4313,8 +4424,8 @@ test_timer_repair_drops_a_finished_write_deferral_chain() {
   # A deferral chain left over from an earlier quiet stretch, already well past the
   # bounded re-surface window.
   back=$(( $(date +%s) - 5000 ))
-  : > "$state/.writing-since-$key"
-  set_mtime "$back" "$state/.writing-since-$key"
+  : > "$state/.defer-since-$key"
+  set_mtime "$back" "$state/.defer-since-$key"
   # The idle-window timer is corrupt, so this poll repairs it and opens a NEW quiet
   # window without probing the worktree at all.
   printf 'corrupt\n' > "$state/.stale-since-$key"
@@ -4329,7 +4440,7 @@ test_timer_repair_drops_a_finished_write_deferral_chain() {
   # suite's other startup-sensitive waits instead of failing after only 3s.
   wait_numeric_file "$state/.stale-since-$key" 100 \
     || { reap "$pid"; fail "the corrupt idle-window timer was not repaired"; }
-  [ ! -e "$state/.writing-since-$key" ] \
+  [ ! -e "$state/.defer-since-$key" ] \
     || { reap "$pid"; fail "an idle-window timer repair kept a finished write-deferral chain"; }
   [ ! -s "$state/.wake-queue" ] || { reap "$pid"; fail "the idle-window timer repair enqueued a wake"; }
   reap "$pid"
@@ -4354,8 +4465,8 @@ test_timer_repair_drops_a_finished_write_deferral_chain() {
   fi
   [ ! -s "$out" ] || { reap "$pid"; fail "a fresh write deferral printed a wake reason: $(cat "$out")"; }
   [ ! -s "$state/.wake-queue" ] || { reap "$pid"; fail "a fresh write deferral enqueued a wake"; }
-  [ -e "$state/.writing-since-$key" ] || { reap "$pid"; fail "the new deferral recorded no chain marker"; }
-  [ ! -e "$state/.writing-resurfaced-$key" ] \
+  [ -e "$state/.defer-since-$key" ] || { reap "$pid"; fail "the new deferral recorded no chain marker"; }
+  [ ! -e "$state/.defer-resurfaced-$key" ] \
     || { reap "$pid"; fail "a fresh write deferral spent its bounded re-surface on the first poll"; }
   reap "$pid"
   pass "an idle-window timer repair drops a finished write-deferral chain, so the next deferral gets a fresh re-surface window"
@@ -4379,8 +4490,8 @@ test_terminal_first_sight_drops_a_finished_write_deferral_chain() {
   printf '%s' "$pane_hash" > "$state/.hash-$key"
   printf '1\n' > "$state/.count-$key"
   back=$(( $(date +%s) - 5000 ))
-  : > "$state/.writing-since-$key"
-  set_mtime "$back" "$state/.writing-since-$key"
+  : > "$state/.defer-since-$key"
+  set_mtime "$back" "$state/.defer-since-$key"
   export FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running)'
 
   # First sight of this hash, absorbed because the active run outranks the stale
@@ -4396,7 +4507,7 @@ test_terminal_first_sight_drops_a_finished_write_deferral_chain() {
   fi
   [ "$(cat "$state/.stale-$key" 2>/dev/null || true)" = "$pane_hash" ] \
     || { reap "$pid"; fail "the first-sight absorb did not advance the stale suppressor"; }
-  [ ! -e "$state/.writing-since-$key" ] \
+  [ ! -e "$state/.defer-since-$key" ] \
     || { reap "$pid"; fail "the provably-working first-sight absorb kept a finished write-deferral chain"; }
   reap "$pid"
   ack_stopped_cycle "$state" || fail "could not acknowledge the intentional first-sight absorb stop"
@@ -4405,8 +4516,8 @@ test_terminal_first_sight_drops_a_finished_write_deferral_chain() {
   # surfaces. That path drops the idle-window timer, so it must drop the chain too.
   rm -f "$state/.stale-$key" "$state/.stale-since-$key"
   printf '1\n' > "$state/.count-$key"
-  : > "$state/.writing-since-$key"
-  set_mtime "$back" "$state/.writing-since-$key"
+  : > "$state/.defer-since-$key"
+  set_mtime "$back" "$state/.defer-since-$key"
   FM_FAKE_CREW_STATE='state: unknown · source: none · no run, no busy pane'
   : > "$out"
   PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \
@@ -4416,7 +4527,7 @@ test_terminal_first_sight_drops_a_finished_write_deferral_chain() {
   pid=$!
   wait_for_exit "$pid" 100 || fail "a first-sight captain-relevant status was not surfaced"
   grep -F "stale: $window" "$out" >/dev/null || fail "the first-sight surface did not print a stale wake"
-  [ ! -e "$state/.writing-since-$key" ] \
+  [ ! -e "$state/.defer-since-$key" ] \
     || fail "the first-sight surface kept a finished write-deferral chain"
   unset FM_FAKE_CREW_STATE
   pass "both first-sight paths through a captain-relevant status drop a finished write-deferral chain with the idle window"
@@ -5359,6 +5470,7 @@ test_paused_authoritative_working_preserves_wedge_timer
 test_nonterminal_stale_repairs_missing_or_corrupt_timer
 test_wedge_escalation_deferred_while_worktree_is_written
 test_write_deferral_resurfaces_on_the_bounded_cadence
+test_alternating_deferrals_keep_one_bounded_resurface_window
 test_secondmate_home_supervision_churn_is_not_write_evidence
 test_timer_repair_drops_a_finished_write_deferral_chain
 test_terminal_first_sight_drops_a_finished_write_deferral_chain
