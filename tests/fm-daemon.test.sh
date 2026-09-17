@@ -859,6 +859,35 @@ test_stale_quiet_run_step_still_wedges() {
   pass "a run step recorded running whose own activity went quiet still escalates as a possible wedge"
 }
 
+# Two metas can carry the same window value, and resolving a stale marker's window
+# back to a task answers with the first of them. The deferral verdict must read the
+# crew the marker is about, or a sibling's live run silences the wedged task's
+# marker on every pass and its escalation never arrives.
+test_stale_verdict_reads_the_markers_own_task() {
+  local dir state fakebin win pane
+  dir=$(make_supercase stale-shared-window)
+  state="$dir/state"; fakebin="$dir/fakebin"
+  win="sess:fm-shared"; pane="$dir/pane.txt"
+  fm_write_meta "$state/a-live.meta" "window=$win" "backend=tmux"
+  fm_write_meta "$state/b-wedged.meta" "window=$win" "backend=tmux"
+  printf 'working: dispatching the implementation\n' > "$state/a-live.status"
+  printf 'working: dispatching the implementation\n' > "$state/b-wedged.status"
+  printf 'idle prompt $\n' > "$pane"
+  echo $(( $(date +%s) - 500 )) > "$state/.subsuper-stale-b-wedged"
+
+  PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$win" FM_FAKE_TMUX_CAPTURE="$pane" \
+    FM_FAKE_CREW_STATE_a_live='state: working · source: run-step · validating (running) · activity: recent' \
+    FM_FAKE_CREW_STATE_b_wedged='state: working · source: run-step · validating (running) · activity: quiet' \
+    FM_STATE_OVERRIDE="$state" FM_ESCALATE_BATCH_SECS=999999 \
+    FM_STALE_ESCALATE_SECS=240 FM_PAUSE_RESURFACE_SECS=3600 housekeeping "$state"
+
+  grep -F "possible wedge" "$state/.subsuper-escalations" >/dev/null \
+    || fail "a sibling task's live run silenced the wedged task's marker: $(cat "$state/.subsuper-escalations" 2>/dev/null)"
+  [ ! -e "$state/.subsuper-validating-b-wedged" ] \
+    || fail "the deferral recorded against a task whose own run step was quiet"
+  pass "the stale verdict reads the crew its own marker names, not a window sibling's"
+}
+
 # The deferral is bounded, not unbounded silence: a run that outlives any real one
 # re-surfaces once per PAUSE_RESURFACE_SECS as a recheck (never a wedge) so a
 # genuinely stuck validation still reaches the captain.
@@ -2928,6 +2957,7 @@ test_enriched_wedge_under_declared_wait_uses_pause_cadence
 test_stale_validating_run_step_defers_instead_of_wedging
 test_stale_parked_gate_still_wedges
 test_stale_quiet_run_step_still_wedges
+test_stale_verdict_reads_the_markers_own_task
 test_stale_validating_resurfaces_on_pause_cadence
 test_stale_terminal_escalates
 test_stale_actionable_wait_escalates_and_keeps_pause_cadence

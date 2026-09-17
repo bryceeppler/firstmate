@@ -599,7 +599,7 @@ migrate_watcher_pause_markers() {  # <state>
 }
 
 sync_pause_markers_from_signal() {  # <state> <signal files>
-  local state=$1 paths=$2 f last task win
+  local state=$1 paths=$2 f last task win pair
   local -a files
   read -r -a files <<<"$paths"
   for f in "${files[@]}"; do
@@ -607,7 +607,8 @@ sync_pause_markers_from_signal() {  # <state> <signal files>
     [ -e "$f" ] || continue
     last=$(last_status_line "$f")
     task=$(basename "$f"); task=${task%.status}
-    win=$(window_for_task "$task" "$state" 2>/dev/null || true)
+    pair=$(window_and_task_for_key "$task" "$state" 2>/dev/null || true)
+    win=${pair%%$'\t'*}
     [ -n "$win" ] || continue
     reconcile_pause_tracking "$win" "$state" "$last"
   done
@@ -1063,7 +1064,7 @@ _oldest_line_age() {  # <buf> -> seconds since the oldest buffered item first ar
 #  3) heartbeat scan: every HEARTBEAT_SCAN_SECS, grep state/*.status for a
 #     captain-relevant line the per-wake classifier missed and escalate it.
 housekeeping() {  # <state>
-  local state=$1 now due f key task win marker age last max_defer oldest pause_secs marker_epoch until bounded_until pause_reason
+  local state=$1 now due f key task win pair marker age last max_defer oldest pause_secs marker_epoch until bounded_until pause_reason
   now=$(_now)
   migrate_watcher_pause_markers "$state"
 
@@ -1103,13 +1104,14 @@ housekeeping() {  # <state>
     key="${marker##*.subsuper-stale-}"
     # Reconstruct the backend target from metadata, with the live tmux list as the
     # legacy fallback for old markers that predate meta lookup.
-    win=$(window_for_task "$key" "$state" 2>/dev/null || true)
+    pair=$(window_and_task_for_key "$key" "$state" 2>/dev/null || true)
+    win=${pair%%$'\t'*}
+    task=${pair#*$'\t'}
     if [ -z "$win" ]; then
       # Window gone (task torn down): drop the marker and its deferral chain,
       # nothing to escalate.
       rm -f "$marker" "$state/.subsuper-validating-$key"; continue
     fi
-    task=$(window_to_task "$win" "$state")
     last=$(last_status_line "$state/$task.status")
     if [ -n "$last" ] && status_is_paused_or_captain_held "$last"; then
       reconcile_pause_tracking "$win" "$state" "$last"
@@ -1118,9 +1120,10 @@ housekeeping() {  # <state>
     age=$(( now - $(cat "$marker" 2>/dev/null || echo "$now") ))
     [ "$age" -ge "${FM_STALE_ESCALATE_SECS:-$STALE_ESCALATE_SECS_DEFAULT}" ] || continue
     stale_window_is_busy "$win" "$state"
-    # Removal uses the key this loop is iterating, never a re-derived one: two
-    # metas can share a window value, and window_to_task answers with the first
-    # of them, which would leave this marker in place to re-enter every pass.
+    # Both the verdict and the removal name the task this loop is iterating, never
+    # one re-derived from the window: two metas can share a window value, and a
+    # re-derivation answers with the first of them, which would read the wrong
+    # crew's state and leave this marker in place to re-enter every pass.
     case "$?" in
       0) rm -f "$marker" "$state/.subsuper-validating-$key" ;;
       2) rm -f "$marker" "$state/.subsuper-validating-$key" ;;
@@ -1151,11 +1154,12 @@ housekeeping() {  # <state>
   for marker in "$state"/.subsuper-paused-*; do
     [ -e "$marker" ] || continue
     key="${marker##*.subsuper-paused-}"
-    win=$(window_for_task "$key" "$state" 2>/dev/null || true)
+    pair=$(window_and_task_for_key "$key" "$state" 2>/dev/null || true)
+    win=${pair%%$'\t'*}
+    task=${pair#*$'\t'}
     if [ -z "$win" ]; then
       rm -f "$marker"; continue
     fi
-    task=$(window_to_task "$win" "$state")
     last=$(last_status_line "$state/$task.status")
     if [ -z "$last" ] || ! status_is_paused_or_captain_held "$last"; then
       reconcile_pause_tracking "$win" "$state" "$last"
@@ -1254,19 +1258,23 @@ housekeeping() {  # <state>
   fi
 }
 
-# Find a recorded or live window target whose task id matches the marker key.
-window_for_task() {  # <task-key> [state]
+# Find a recorded or live window target whose task id matches the marker key, and
+# report that task id alongside it as `<window>\t<task>`. Both travel together
+# because _stale_key is lossy and a window value can be shared by two metas, so a
+# caller that re-derives the task from the window alone can be answered with the
+# other meta's task and then decide about one task while its marker names another.
+window_and_task_for_key() {  # <task-key> [state]
   local key=$1 state=${2:-$(_state_root)} meta task w t
   for meta in "$state"/*.meta; do
     [ -e "$meta" ] || continue
     task=$(basename "$meta"); task=${task%.meta}
     [ "$(_stale_key "$task")" = "$key" ] || continue
     w=$(fm_backend_target_of_meta "$meta")
-    [ -n "$w" ] && { printf '%s' "$w"; return 0; }
+    [ -n "$w" ] && { printf '%s\t%s' "$w" "$task"; return 0; }
   done
   for w in $(tmux list-windows -a -F '#{session_name}:#{window_name}' 2>/dev/null | grep ':fm-' || true); do
     t=$(window_to_task "$w" "$state")
-    [ "$(_stale_key "$t")" = "$key" ] && { printf '%s' "$w"; return 0; }
+    [ "$(_stale_key "$t")" = "$key" ] && { printf '%s\t%s' "$w" "$t"; return 0; }
   done
   return 1
 }
