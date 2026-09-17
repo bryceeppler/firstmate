@@ -41,10 +41,11 @@
 #     drain and acknowledges it only after routing completes.
 #   - Fail-safe-to-escalate: any wake the classifier cannot confidently mark
 #     routine is escalated.
-#   - Bounded wedge latency: a stale pane without a declared wait is escalated
-#     only after it has been idle for STALE_ESCALATE_SECS
-#     (configurable), rechecked once. A wedged crewmate is therefore detected
-#     within STALE_ESCALATE_SECS + a tick, never lost. A declared wait - either a
+#   - Bounded wedge latency: a stale pane without a declared wait or a live run
+#     step reporting recent activity is escalated only after it has been idle for
+#     STALE_ESCALATE_SECS (configurable), rechecked once. A crewmate without that
+#     positive activity evidence is therefore detected within
+#     STALE_ESCALATE_SECS + a tick, never lost. A declared wait - either a
 #     paused: external wait or a verified captain-held transfer, per
 #     fm-classify-lib.sh's combined predicate - instead gets its own longer
 #     PAUSE_RESURFACE_SECS recheck, never a wedge escalation, whether its pane
@@ -101,10 +102,11 @@
 #                                   captain-relevant escalation for matching
 #                                   kinds.
 #          FM_STALE_ESCALATE_SECS   idle seconds before a stale pane escalates
-#                                   as a possible wedge (default 240)
-#          FM_PAUSE_RESURFACE_SECS  seconds a declared wait stays declared,
-#                                   idle or busy, before it re-surfaces as a
-#                                   recheck (default 14400, four hours); an
+#                                   as a possible wedge (default 240), unless a
+#                                   live run step still reports recent activity
+#          FM_PAUSE_RESURFACE_SECS  seconds before a declared wait or a quiet
+#                                   pane explained by a live run step re-surfaces
+#                                   as a recheck (default 14400, four hours); an
 #                                   `until` time cannot extend this bound, and a
 #                                   captain-held transfer is never rechecked
 #                                   while the away-posture record exists
@@ -507,8 +509,7 @@ stale_marker_remove() {  # <task> <state>
 # no-mistakes run step (crew_is_validating in fm-classify-lib.sh owns that verdict,
 # and its narrowness is what keeps a parked approval or fix-review gate escalating).
 # A validating pipeline executes the crew's work outside the pane, so an idle pane
-# is what validating LOOKS like; treating that quiet as a wedge is what produced six
-# consecutive false alarms during the 2026-09-16 and 2026-09-17 away windows.
+# is expected while that pipeline continues to report recent activity.
 #
 # Deliberately a DEFERRAL, not a silence, in the same bounded shape the declared-wait
 # recheck above uses: the wedge marker is reset so a run that ENDS while the pane

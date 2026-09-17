@@ -924,9 +924,8 @@ wedge_defer_writing() {  # <window> <since-file> <triage-label> <idle-age>
 
 # Defer ONE wedge escalation for a pane whose crew is parked on a LIVE no-mistakes
 # run step (crew_is_validating in fm-classify-lib.sh owns that verdict). The
-# pipeline is executing the crew's work outside the pane, so an idle pane is what
-# validating LOOKS like - the 2026-09-16/17 away windows escalated six such crews,
-# every one reading `validating (running)` at the moment it was called a wedge.
+# pipeline is executing the crew's work outside the pane, so an idle pane is
+# expected while that pipeline continues to report recent activity.
 # Deliberately the same DEFERRAL shape as wedge_defer_writing: the idle timer
 # restarts, so a run that ends while the pane stays quiet escalates within one
 # STALE_ESCALATE_SECS and the worst-case detection time for a genuinely wedged pane

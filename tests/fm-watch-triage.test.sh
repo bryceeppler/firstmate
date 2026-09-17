@@ -1944,9 +1944,7 @@ test_stale_terminal_status_overridden_by_active_run() {
 
   # Phase B: backdate the idle timer past the threshold. The pipeline is still
   # running, so the quiet pane is what validating looks like, not a wedge: the
-  # escalation is DEFERRED and the idle timer restarts. This is the regression for
-  # the six false "possible wedge" alarms raised against healthy validating crews
-  # during the 2026-09-16 and 2026-09-17 away windows.
+  # escalation is DEFERRED and the idle timer restarts.
   echo $(( $(date +%s) - 500 )) > "$state/.stale-since-$key"
   : > "$out"
   PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \

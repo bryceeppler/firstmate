@@ -90,7 +90,8 @@ FM_CLASSIFY_CAPTAIN_RE_DEFAULT='done:|needs-decision:|blocked:|failed:|PR ready|
 # drift between the two consumers. FM_CLASSIFY_PAUSED_VERB overrides it.
 FM_CLASSIFY_PAUSED_VERB_DEFAULT='paused'
 
-# Bounded re-surface cadence for a declared external-wait pause.
+# Bounded re-surface cadence for declared waits and quiet-window liveness
+# deferrals from recent pipeline activity or current worktree writes.
 # Far longer than the wedge threshold (FM_STALE_ESCALATE_SECS, default 240s), it
 # avoids nagging a deliberate wait while ensuring a forgotten wait cannot rot
 # invisibly - it re-surfaces once for a recheck every window. Four hours by
@@ -99,8 +100,8 @@ FM_CLASSIFY_PAUSED_VERB_DEFAULT='paused'
 # (the 2026-09-07 away-window audit). A worker that knows when its wait clears
 # names it with `until` (status_paused_until below) and is rechecked at that
 # time or this cadence bound, whichever comes first. Both consumers read
-# FM_PAUSE_RESURFACE_SECS with this default so
-# the cadence has one owner. An item held for the captain is not rechecked at all
+# FM_PAUSE_RESURFACE_SECS with this default so the cadence has one owner. An item
+# held for the captain is not rechecked at all
 # while the away-posture record exists (bin/fm-watch.sh owns that rule).
 # shellcheck disable=SC2034 # Read by the watcher and daemon (fm-watch.sh, fm-supervise-daemon.sh), not this lib.
 FM_PAUSE_RESURFACE_SECS_DEFAULT=14400
@@ -1985,9 +1986,8 @@ crew_is_paused() {  # <id>
 # work outside the pane, so the pane has nothing to draw for as long as the step
 # runs, and the stale path must treat that quiet the way it treats a `paused:`
 # declaration - absorbed on the long re-surface cadence rather than escalated as a
-# possible wedge. Six consecutive false possible-wedge escalations against crews
-# reading `validating (running)` during the 2026-09-16 and 2026-09-17 away windows
-# are what this predicate exists to stop.
+# possible wedge. This predicate prevents a healthy background validation from
+# being reported as a wedged pane.
 #
 # BOTH conditions are load-bearing, because `working · run-step` alone is wider
 # than the running/fixing/ci steps it looks like: bin/fm-crew-state.sh also emits

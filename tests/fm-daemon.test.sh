@@ -770,11 +770,9 @@ test_enriched_wedge_under_declared_wait_uses_pause_cadence() {
 
 # The away supervisor's stale recheck escalated a possible wedge on elapsed idle
 # time alone. A crew parked on a live no-mistakes run legitimately renders nothing
-# for minutes at a time because the run executes outside the pane, so six
-# consecutive false wedge alarms landed on healthy validating crews during the
-# 2026-09-16 and 2026-09-17 away windows. A live run step is now a declared wait
-# the crew never had to write down: it defers the wedge timer and is rechecked on
-# the long PAUSE_RESURFACE_SECS cadence instead of escalating.
+# for minutes at a time because the run executes outside the pane. A live run step
+# is a declared wait the crew never had to write down: it defers the wedge timer and
+# is rechecked on the long PAUSE_RESURFACE_SECS cadence instead of escalating.
 test_stale_validating_run_step_defers_instead_of_wedging() {
   local dir state fakebin task win pane key
   dir=$(make_supercase stale-validating-defer)
