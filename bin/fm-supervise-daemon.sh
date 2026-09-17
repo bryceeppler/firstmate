@@ -49,7 +49,13 @@
 #     fm-classify-lib.sh's combined predicate - instead gets its own longer
 #     PAUSE_RESURFACE_SECS recheck, never a wedge escalation, whether its pane
 #     reads idle or busy; only a status append that stops declaring the wait
-#     ends that routing. A captain-held transfer is not rechecked at all while
+#     ends that routing. A crew parked on a LIVE no-mistakes run step
+#     (fm-classify-lib.sh's crew_is_validating) is a declared wait it never had to
+#     write down - the pipeline runs its work outside the pane - and takes the same
+#     PAUSE_RESURFACE_SECS recheck instead of a wedge escalation; the verdict is
+#     read once, at the moment an escalation would otherwise fire, and a parked
+#     gate, failed run, or pane with no run step keeps the unchanged schedule.
+#     A captain-held transfer is not rechecked at all while
 #     the away-posture record (state/.afk-contract) exists: nobody is there to
 #     answer it, and the return brief lists it.
 #     Crewmates are autonomous, so a delayed stale response does not stall a
@@ -490,7 +496,41 @@ stale_marker_record() {  # <window> <state>  — create if absent
 stale_marker_remove() {  # <window> <state>
   local win=$1 state=$2 key
   key=$(_stale_key "$(window_to_task "$win" "$state")")
-  rm -f "$state/.subsuper-stale-$key"
+  rm -f "$state/.subsuper-stale-$key" "$state/.subsuper-validating-$key"
+}
+
+# Defer ONE possible-wedge escalation for a window whose crew is parked on a LIVE
+# no-mistakes run step (crew_is_validating in fm-classify-lib.sh owns that verdict,
+# and its narrowness is what keeps a parked approval or fix-review gate escalating).
+# A validating pipeline executes the crew's work outside the pane, so an idle pane
+# is what validating LOOKS like; treating that quiet as a wedge is what produced six
+# consecutive false alarms during the 2026-09-16 and 2026-09-17 away windows.
+#
+# Deliberately a DEFERRAL, not a silence, in the same bounded shape the declared-wait
+# recheck above uses: the wedge marker is reset so a run that ENDS while the pane
+# stays quiet escalates within one FM_STALE_ESCALATE_SECS, and a .subsuper-validating
+# marker ages the deferral so a run outliving any real one re-surfaces once every
+# FM_PAUSE_RESURFACE_SECS rather than going silent forever. The recheck names the run
+# rather than an external dependency or the captain, because the crew's pipeline - not
+# a human - is what has to move for the wait to clear.
+# The crew-state read costs one bounded call and runs ONLY here, at the moment an
+# escalation would otherwise fire: at most once per window per FM_STALE_ESCALATE_SECS,
+# never on the per-poll classification path.
+validating_defer() {  # <window> <state> <task>
+  local win=$1 state=$2 task=$3 key marker epoch vage
+  key=$(_stale_key "$task")
+  marker="$state/.subsuper-validating-$key"
+  [ -e "$marker" ] || _now > "$marker"
+  # Content epoch, not mtime, exactly as the stale and pause markers beside it age:
+  # the file is rewritten on every recheck, so mtime would restart the window.
+  epoch=$(cat "$marker" 2>/dev/null || _now)
+  case "$epoch" in ''|*[!0-9]*) epoch=$(_now) ;; esac
+  vage=$(( $(_now) - epoch ))
+  _now > "$state/.subsuper-stale-$key"
+  [ "$vage" -ge "${FM_PAUSE_RESURFACE_SECS:-$FM_PAUSE_RESURFACE_SECS_DEFAULT}" ] || return 0
+  if escalate_add "$state" "validating ${vage}s (a live validation run explains the quiet pane, rechecked on a long cadence not a wedge; confirm the run is still moving): $win"; then
+    _now > "$marker"
+  fi
 }
 
 # Pause marker: state/.subsuper-paused-<key> holds the epoch a declared wait (a
@@ -522,6 +562,8 @@ clear_pause_tracking() {  # <window> <state>
     "$state/.paused-$watcher_key" "$state/.paused-rechecked-$watcher_key" "$state/.paused-resurfaced-$watcher_key" \
     "$state/.stale-$watcher_key" "$state/.stale-since-$watcher_key" "$state/.wedge-escalations-$watcher_key" \
     "$state/.writing-since-$watcher_key" "$state/.writing-resurfaced-$watcher_key" \
+    "$state/.validating-since-$watcher_key" "$state/.validating-resurfaced-$watcher_key" \
+    "$state/.subsuper-validating-$key" \
     "$state/.waiting-resurfaced-$watcher_key"
 }
 
@@ -1062,8 +1104,9 @@ housekeeping() {  # <state>
     # legacy fallback for old markers that predate meta lookup.
     win=$(window_for_task "$key" "$state" 2>/dev/null || true)
     if [ -z "$win" ]; then
-      # Window gone (task torn down): drop the marker, nothing to escalate.
-      rm -f "$marker"; continue
+      # Window gone (task torn down): drop the marker and its deferral chain,
+      # nothing to escalate.
+      rm -f "$marker" "$state/.subsuper-validating-$key"; continue
     fi
     task=$(window_to_task "$win" "$state")
     last=$(last_status_line "$state/$task.status")
@@ -1075,9 +1118,11 @@ housekeeping() {  # <state>
     [ "$age" -ge "${FM_STALE_ESCALATE_SECS:-$STALE_ESCALATE_SECS_DEFAULT}" ] || continue
     stale_window_is_busy "$win" "$state"
     case "$?" in
-      0) rm -f "$marker" ;;
-      2) rm -f "$marker" ;;
-      *) if escalate_add "$state" "stale persisted ${age}s (possible wedge): $win"; then
+      0) stale_marker_remove "$win" "$state" ;;
+      2) stale_marker_remove "$win" "$state" ;;
+      *) if crew_is_validating "$task"; then
+           validating_defer "$win" "$state" "$task"
+         elif escalate_add "$state" "stale persisted ${age}s (possible wedge): $win"; then
            stale_marker_remove "$win" "$state"
          fi ;;
     esac

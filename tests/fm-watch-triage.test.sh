@@ -479,6 +479,45 @@ test_crew_absorb_class_classifier() {
   pass "crew_absorb_class: working/paused/none from one read; crew_is_paused and crew_is_provably_working agree"
 }
 
+# crew_is_validating: the live-run-step predicate the wedge path treats as a
+# declared wait the crew never had to write down. Deliberately NARROWER than
+# crew_is_provably_working - a busy pane proves only that something is rendering,
+# so it keeps the unchanged wedge schedule, while an executing pipeline explains a
+# pane that renders nothing at all. The narrowing is self-enforcing because
+# fm-crew-state.sh maps a parked gate to `parked`, a failed or cancelled run to
+# `failed`, and a passed one to `done`: none of them can reach this predicate, so a
+# gate that needs firstmate is never silenced.
+test_crew_is_validating_classifier() {
+  local dir fakebin
+  dir=$(make_case crew-validating); fakebin="$dir/fakebin"
+  export FM_CREW_STATE_BIN="$fakebin/fm-crew-state.sh"
+  export FM_FAKE_CREW_STATE
+  FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running)'
+  crew_is_validating a || fail "a running validation step is not a live run step"
+  FM_FAKE_CREW_STATE='state: working · source: run-step · validating (fixing)'
+  crew_is_validating a || fail "a fixing validation step is not a live run step"
+  FM_FAKE_CREW_STATE='state: working · source: run-step · ci running'
+  crew_is_validating a || fail "a running ci step is not a live run step"
+  FM_FAKE_CREW_STATE='state: working · source: pane · harness busy'
+  ! crew_is_validating a || fail "a busy pane was treated as a live run step"
+  FM_FAKE_CREW_STATE='state: working · source: status-log · working: compiling'
+  ! crew_is_validating a || fail "a stale working: status line was treated as a live run step"
+  FM_FAKE_CREW_STATE='state: parked · source: run-step · parked at review'
+  ! crew_is_validating a || fail "a parked gate was treated as a live run step"
+  FM_FAKE_CREW_STATE='state: failed · source: run-step · run failed'
+  ! crew_is_validating a || fail "a failed run was treated as a live run step"
+  FM_FAKE_CREW_STATE='state: done · source: run-step · checks green'
+  ! crew_is_validating a || fail "a finished run was treated as a live run step"
+  FM_FAKE_CREW_STATE='state: paused · source: status-log · awaiting upstream'
+  ! crew_is_validating a || fail "a declared pause was treated as a live run step"
+  FM_FAKE_CREW_STATE='state: unknown · source: none · worktree gone'
+  ! crew_is_validating a || fail "an unreadable crew was treated as a live run step"
+  FM_FAKE_CREW_STATE='state: working · source: run-step · x'
+  ! crew_is_validating "" || fail "an empty id was treated as a live run step"
+  unset FM_FAKE_CREW_STATE
+  pass "crew_is_validating: only working+run-step is a live run step; a busy pane, parked gate, failure, pause, or unknown crew is not"
+}
+
 # The wedge detector's third liveness input: writes inside the crew's own recorded
 # worktree. Every negative outcome must report "no evidence" so the caller keeps
 # its existing escalation schedule, and a supervisor-side git read (which touches
@@ -1890,25 +1929,56 @@ test_stale_terminal_status_overridden_by_active_run() {
   reap "$pid"
   ack_stopped_cycle "$state" || fail "could not acknowledge the intentional phase-A watcher stop"
 
-  # Phase B: backdate the idle timer past the threshold; the run genuinely
-  # wedges and the next poll escalates exactly like the non-terminal case.
+  # Phase B: backdate the idle timer past the threshold. The pipeline is still
+  # running, so the quiet pane is what validating looks like, not a wedge: the
+  # escalation is DEFERRED and the idle timer restarts. This is the regression for
+  # the six false "possible wedge" alarms raised against healthy validating crews
+  # during the 2026-09-16 and 2026-09-17 away windows.
   echo $(( $(date +%s) - 500 )) > "$state/.stale-since-$key"
   : > "$out"
   PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \
-    FM_STATE_OVERRIDE="$state" FM_CREW_STATE_BIN="$fakebin/fm-crew-state.sh" FM_STALE_ESCALATE_SECS=240 FM_POLL=1 FM_SIGNAL_GRACE=1 \
+    FM_STATE_OVERRIDE="$state" FM_CREW_STATE_BIN="$fakebin/fm-crew-state.sh" FM_STALE_ESCALATE_SECS=240 \
+    FM_PAUSE_RESURFACE_SECS=3600 FM_POLL=1 FM_SIGNAL_GRACE=1 \
     FM_CHECK_INTERVAL=999999 FM_HEARTBEAT=999999 "$WATCH" > "$out" &
   pid=$!
-  wait_for_exit "$pid" 100 || fail "watcher did not escalate an overridden stale terminal status past the threshold"
-  grep -F "stale: $window" "$out" >/dev/null || fail "escalation did not print a stale wake"
-  grep -F "possible wedge" "$out" >/dev/null || fail "escalation did not flag a possible wedge"
+  if ! wait_poll_cycle "$state" "$pid"; then
+    reap "$pid"; fail "a live validation run was wedge-escalated instead of deferred: $(cat "$out")"
+  fi
+  [ ! -s "$out" ] || { reap "$pid"; fail "a live validation run printed a wedge wake: $(cat "$out")"; }
+  [ ! -s "$state/.wake-queue" ] || { reap "$pid"; fail "a live validation run enqueued a wedge wake"; }
+  [ -e "$state/.validating-since-$key" ] \
+    || { reap "$pid"; fail "the deferral recorded no chain marker, so it could never re-surface"; }
+  # Deferral, not cancellation: the idle timer restarts, so a run that ENDS while the
+  # pane stays quiet still escalates within one FM_STALE_ESCALATE_SECS.
+  [ "$(( $(date +%s) - $(cat "$state/.stale-since-$key") ))" -lt 240 ] \
+    || { reap "$pid"; fail "the deferral left the idle timer aged past the threshold"; }
+  reap "$pid"
+  ack_stopped_cycle "$state" || fail "could not acknowledge the intentional phase-B watcher stop"
+
+  # Phase C: the deferral is bounded. Age the chain past PAUSE_RESURFACE_SECS and a
+  # run that outlives any real one re-surfaces once - as a recheck naming the run,
+  # never as a possible wedge.
+  set_mtime "$(( $(date +%s) - 5000 ))" "$state/.validating-since-$key"
+  echo $(( $(date +%s) - 500 )) > "$state/.stale-since-$key"
+  : > "$out"
+  PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \
+    FM_STATE_OVERRIDE="$state" FM_CREW_STATE_BIN="$fakebin/fm-crew-state.sh" FM_STALE_ESCALATE_SECS=240 \
+    FM_PAUSE_RESURFACE_SECS=3600 FM_POLL=1 FM_SIGNAL_GRACE=1 \
+    FM_CHECK_INTERVAL=999999 FM_HEARTBEAT=999999 "$WATCH" > "$out" &
+  pid=$!
+  wait_for_exit "$pid" 100 || fail "a validation run outliving the bounded window never re-surfaced"
+  grep -F "stale: $window" "$out" >/dev/null || fail "the bounded re-surface printed no stale wake"
+  grep -F "validating for" "$out" >/dev/null || fail "the bounded re-surface did not name the validation run"
+  grep -F "possible wedge" "$out" >/dev/null && fail "the bounded re-surface was mislabeled a possible wedge"
   unset FM_FAKE_CREW_STATE
-  pass "a stale terminal-looking status is overridden and absorbed while a run is actively working, then wedge-escalated"
+  pass "a stale terminal-looking status is overridden while a run is actively working, deferred rather than wedged, and re-surfaced on the bounded cadence"
 }
 
-# --- non-terminal stale, crew provably working: absorbed, then wedge-escalated ---
-# A provably-working crew (an actively-running pipeline) legitimately sits on a
-# static pane (e.g. waiting on CI), so a non-terminal stale is absorbed and only
-# the wedge timer eventually escalates it - the low-churn behavior preserved.
+# --- non-terminal stale, crew busy but NOT validating: absorbed, then wedge-escalated ---
+# A crew whose harness is rendering is provably working, so a non-terminal stale is
+# absorbed on first sight - the low-churn behavior preserved. With no live run step
+# to explain a pane that renders nothing, the wedge timer keeps its unchanged
+# schedule and eventually escalates: only an executing pipeline defers it.
 
 test_nonterminal_stale_provably_working_absorbed_then_escalated() {
   local dir state fakebin out drain_out capture_file window key pane_hash sig pid
@@ -1925,8 +1995,10 @@ test_nonterminal_stale_provably_working_absorbed_then_escalated() {
   pane_hash=$(hash_text "idle building output")
   printf '%s' "$pane_hash" > "$state/.hash-$key"
   printf '1\n' > "$state/.count-$key"
-  # The crew's pipeline is actively running: a static pane is normal (waiting on CI).
-  export FM_FAKE_CREW_STATE='state: working · source: run-step · ci running'
+  # A busy pane, and NO live run step: the harness is rendering, which absorbs the
+  # first sighting, but nothing is executing the crew's work outside the pane, so the
+  # wedge timer keeps its unchanged schedule (only a live run step defers it).
+  export FM_FAKE_CREW_STATE='state: working · source: pane · harness busy'
 
   # Phase A: a high escalation threshold means the first sighting is absorbed.
   PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \
@@ -1957,7 +2029,7 @@ test_nonterminal_stale_provably_working_absorbed_then_escalated() {
   [ ! -e "$state/.stale-since-$key" ] || fail "stale-since timer was not cleared after escalation"
   FM_STATE_OVERRIDE="$state" "$DRAIN" > "$drain_out" 2>/dev/null || fail "drain after the wedge escalation failed"
   grep "$(printf '\tstale\t')" "$drain_out" | grep -F "$window" >/dev/null || fail "wedge escalation was not queued"
-  pass "provably-working non-terminal stale is absorbed on first sight, then wedge-escalated past the threshold"
+  pass "a busy-pane non-terminal stale with no live run step is absorbed on first sight, then wedge-escalated past the threshold"
 }
 
 # --- non-terminal stale, crew NOT provably working: surfaced immediately ------
@@ -2511,7 +2583,11 @@ wedge_reported_wait_secs() {  # <watch-out>
 
 test_wedge_threshold_defers_to_a_declared_wait_under_a_working_verdict() {
   local dir state fakebin out capture window key n past reported
-  local working='state: working · source: run-step · ci running'
+  # A busy pane, not a live run step: this case is about a WRITTEN declaration
+  # explaining the quiet, and a live run step is its own separate deferral, so the
+  # verdict here must not supply one or the elapsed-declaration phase below could
+  # never see the unchanged wedge wording return.
+  local working='state: working · source: pane · harness busy'
 
   dir=$(wedge_threshold_fixture declared-wait-working \
     'paused: final validation at step 6/6 - clean whole-assembly baseline (~20 min)' 0)
@@ -3155,7 +3231,10 @@ test_paused_authoritative_working_preserves_wedge_timer() {
   printf '%s' "$pane_hash" > "$state/.stale-$key"
   printf '1\n' > "$state/.count-$key"
   : > "$state/.paused-$key"
-  export FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running)'
+  # A busy pane rather than a live run step: this case is about the DECLARATION
+  # owning the pane, so the authoritative-working verdict must not also be the
+  # live-run-step deferral, or the final phase could not tell the two apart.
+  export FM_FAKE_CREW_STATE='state: working · source: pane · harness busy'
 
   PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \
     FM_STATE_OVERRIDE="$state" FM_CREW_STATE_BIN="$fakebin/fm-crew-state.sh" FM_STALE_ESCALATE_SECS=999 FM_POLL=1 FM_SIGNAL_GRACE=1 \
@@ -3233,8 +3312,10 @@ test_wedge_escalation_marks_demand_deep_inspection_after_threshold() {
   pane_hash=$(hash_text "idle building output")
   printf '%s' "$pane_hash" > "$state/.hash-$key"
   printf '1\n' > "$state/.count-$key"
-  # The crew's pipeline is actively running: a static pane is normal (waiting on CI).
-  export FM_FAKE_CREW_STATE='state: working · source: run-step · validating (running)'
+  # A busy pane, and no live run step: the first sighting is absorbed, but nothing
+  # explains a pane that renders nothing, so the wedge timer keeps its unchanged
+  # schedule and this case can count consecutive escalations.
+  export FM_FAKE_CREW_STATE='state: working · source: pane · harness busy'
 
   # Priming round: first sighting of this stale hash classifies and absorbs it
   # (establishing .stale-$key and starting the wedge timer) without going
@@ -5101,6 +5182,7 @@ test_classifier_primitives
 test_crew_is_provably_working_classifier
 test_status_is_paused_classifier
 test_crew_absorb_class_classifier
+test_crew_is_validating_classifier
 test_crew_worktree_written_since_classifier
 test_empty_write_prune_widens_the_probe
 test_empty_write_prune_from_the_environment_widens_the_probe

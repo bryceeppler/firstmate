@@ -1918,6 +1918,18 @@ status_span_has_actionable() {  # <status-file> <start-offset>
   status_span_first_actionable_record "$1" "${2:-0}" > /dev/null
 }
 
+# The single bin/fm-crew-state.sh invocation every classifier below is built on.
+# Prints that helper's one authoritative current-state line and returns 1 when it
+# produced no readable verdict, so an unreadable read fails every classifier the
+# same way rather than each one re-deciding what an unparseable line means.
+# FM_CREW_STATE_BIN lets tests stub the verdict.
+_crew_state_line() {  # <id>
+  local id=$1 line
+  [ -n "$id" ] || return 1
+  line=$("$FM_CREW_STATE_BIN" "$id" 2>/dev/null) || true
+  case "$line" in state:*) printf '%s' "$line" ;; *) return 1 ;; esac
+}
+
 # Classify WHY an idle/stale crew MIGHT be safely absorbed instead of surfaced,
 # from bin/fm-crew-state.sh's one authoritative current-state line
 # ("state: <s> · source: <src> · <detail>"). Prints exactly one token:
@@ -1933,12 +1945,9 @@ status_span_has_actionable() {  # <status-file> <start-offset>
 # that appended paused: but then STARTED a run reports working, never paused.
 # NOT a pure read: fm-crew-state.sh may make a bounded no-mistakes call, so callers
 # run it only on no-verb signal and first-sighting stale paths, never every wake.
-# FM_CREW_STATE_BIN lets tests stub the verdict.
 crew_absorb_class() {  # <id>
-  local id=$1 line state src
-  [ -n "$id" ] || { printf 'none'; return; }
-  line=$("$FM_CREW_STATE_BIN" "$id" 2>/dev/null) || true
-  case "$line" in state:*) ;; *) printf 'none'; return ;; esac
+  local line state src
+  line=$(_crew_state_line "$1") || { printf 'none'; return; }
   state=${line#state: }; state=${state%% *}
   if [ "$state" = paused ]; then printf 'paused'; return; fi
   if [ "$state" = working ]; then
@@ -1967,6 +1976,31 @@ crew_is_provably_working() {  # <id>
 # escalating a possible wedge.
 crew_is_paused() {  # <id>
   [ "$(crew_absorb_class "$1")" = paused ]
+}
+
+# 0 if crew <id>'s authoritative current state is a LIVE no-mistakes run step -
+# state `working` attributed to `run-step`, which bin/fm-crew-state.sh reports only
+# for a running, fixing, or ci step. This is a declared wait the crew never had to
+# write down: the pipeline is executing its work outside the pane, so the pane has
+# nothing to draw for as long as the step runs, and the stale path must treat that
+# quiet the way it treats a `paused:` declaration - absorbed on the long re-surface
+# cadence rather than escalated as a possible wedge. Six consecutive false
+# possible-wedge escalations against crews reading `validating (running)` during the
+# 2026-09-16 and 2026-09-17 away windows are what this predicate exists to stop.
+#
+# Deliberately NARROWER than crew_is_provably_working, which also absorbs a busy
+# pane: a busy pane proves only that something is rendering, so it keeps the
+# unchanged wedge schedule. The run-step mapping is what makes the narrowing
+# self-enforcing - a parked approval or fix-review gate reports `parked`, a failed
+# or cancelled run reports `failed`, and a passed one reports `done`, so none of
+# them can reach this predicate and a gate that needs firstmate is never silenced.
+crew_is_validating() {  # <id>
+  local line state src
+  line=$(_crew_state_line "$1") || return 1
+  state=${line#state: }; state=${state%% *}
+  [ "$state" = working ] || return 1
+  src=${line#*source: }; src=${src%% *}
+  [ "$src" = run-step ]
 }
 
 # Directories excluded from the worktree write probe below, and the depth it walks.
