@@ -19,8 +19,10 @@
 # This script owns fm-contributions.v1: one atomic file per durable task with
 # task and records[]. Each record contains url, kind, checked_at, error,
 # observation, verdict, seen event tokens, pending events, and notified tokens.
-# A record whose read never answered also carries attempted_at and the count of
-# consecutive unmeasured attempts; both are dropped once the URL is measured.
+# A record whose observation starts with the whole poll budget but times out
+# carries attempted_at and unmeasured. attempted_at records the last such read.
+# unmeasured counts consecutive full-budget timeouts. Both fields are dropped
+# once the URL is measured or the monitor records a forge failure.
 # observation is one coherent forge read (a PR head is rechecked after fetching
 # checks/reviews). Checks are normalized by name, id, started_at, status and
 # conclusion; projection picks the newest attempt per distinct name. The last
