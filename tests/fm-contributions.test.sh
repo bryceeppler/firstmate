@@ -7,6 +7,7 @@ TMP_ROOT=$(fm_test_tmproot fm-contributions)
 NOW=2026-09-16T08:00:00Z
 HEAD_A=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 HEAD_B=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+UNAVAILABLE='forge observation unavailable or changed during read'
 
 new_home() {
   local home="$TMP_ROOT/$1"
@@ -565,6 +566,7 @@ case "$fault:$*" in
   fail:'api repos/o/r/pulls/8/reviews?'*) printf 'HTTP 502\n' >&2; exit 1 ;;
   down:*) printf 'HTTP 502\n' >&2; exit 1 ;;
   hang:'api repos/o/r/pulls/8') sleep 4 ;;
+  slow:'api repos/o/r/pulls/8') sleep 6 ;;
   head:'pr view '*) printf '{"headRefOid":"%s","reviewDecision":"APPROVED"}\n' "$(printf 'b%.0s' $(seq 40))"; exit 0 ;;
 esac
 exec "$(dirname "$0")/gh-fixture" "$@"
@@ -611,14 +613,48 @@ test_genuine_failure_near_deadline_is_unavailable() {
   out=$(with_home "$home" "$ROOT/bin/fm-contributions.sh" poll) || fail 'poll failed on a genuine forge failure'
   [ "$out" = 'contributions: observation unavailable for https://github.com/o/r/pull/8' ] \
     || fail "a genuine forge failure past the deadline was swallowed: $out"
-  jq -e --arg now "$NOW" '.records[0].checked_at == $now
-    and .records[0].error == "forge observation unavailable or changed during read"' \
+  jq -e --arg now "$NOW" --arg prefix "$UNAVAILABLE" '.records[0].checked_at == $now
+    and (.records[0].error | startswith($prefix))' \
     "$home/data/delivery/contributions.json" >/dev/null || fail 'a genuine forge failure left no error evidence'
   pass 'a genuine forge failure inside the budget still records the error and wakes'
 }
 
+test_slow_call_inside_budget_is_not_a_failure() {
+  local home out
+  home=$(new_home slow-call)
+  forge_home "$home"
+  wrap_forge "$home"
+  mutate_record "$home" delivery '.records[0].checked_at="2026-09-15T08:00:00Z"'
+  # A frozen clock keeps the poll's own budget intact while one call runs long.
+  /bin/date +%s > "$home/forge/clock"
+  printf 'slow\n' > "$home/forge/fault"
+  out=$(with_home "$home" "$ROOT/bin/fm-contributions.sh" poll) || fail 'poll failed on a slow forge call'
+  [ -z "$out" ] || fail "a call slower than five seconds but inside the budget woke firstmate: $out"
+  jq -e --arg now "$NOW" '.records[0] | .checked_at == $now and .error == null and .observation.state == "open"' \
+    "$home/data/delivery/contributions.json" >/dev/null \
+    || fail "a slow but answered call was recorded as unavailable: $(cat "$home/data/delivery/contributions.json")"
+  [ ! -s "$home/state/.wake-queue" ] || fail 'a slow but answered call enqueued a wake'
+  pass 'a forge call slower than five seconds still answers inside the poll budget'
+}
+
+test_failure_records_diagnosable_excerpt() {
+  local home out
+  home=$(new_home failure-excerpt)
+  forge_home "$home"
+  wrap_forge "$home"
+  printf 'fail\n' > "$home/forge/fault"
+  out=$(with_home "$home" "$ROOT/bin/fm-contributions.sh" poll) || fail 'poll failed on a hard forge failure'
+  [ "$out" = 'contributions: observation unavailable for https://github.com/o/r/pull/8' ] \
+    || fail "a hard forge failure did not wake exactly once: $out"
+  jq -e --arg prefix "$UNAVAILABLE" '.records[0].error
+    | startswith($prefix) and test("pulls/8/reviews") and test("HTTP 502") and (length <= 320)' \
+    "$home/data/delivery/contributions.json" >/dev/null \
+    || fail "a hard forge failure was not diagnosable: $(jq -r .records[0].error "$home/data/delivery/contributions.json")"
+  pass 'a hard forge failure names the failing call and its stderr excerpt'
+}
+
 test_shared_url_observed_once() {
-  local mode home out calls expected
+  local mode home out calls failed
   for mode in ok fail head; do
     home=$(new_home "shared-once-$mode")
     forge_home "$home"
@@ -629,15 +665,17 @@ test_shared_url_observed_once() {
     calls=$(grep -cFx 'api repos/o/r/pulls/8' "$home/forge/calls")
     [ "$calls" = 1 ] || fail "a URL owned by two tasks was observed $calls times in one poll ($mode)"
     if [ "$mode" = ok ]; then
-      expected=null
+      failed=0
       [ -z "$out" ] || fail "a healthy shared observation printed: $out"
     else
-      expected='"forge observation unavailable or changed during read"'
+      failed=1
       [ "$out" = 'contributions: observation unavailable for https://github.com/o/r/pull/8' ] \
         || fail "a shared unavailable observation did not wake exactly once ($mode): $out"
     fi
     for task in delivery duplicate; do
-      jq -e --arg now "$NOW" --argjson error "$expected" '.records[0].checked_at == $now and .records[0].error == $error' \
+      jq -e --arg now "$NOW" --argjson failed "$failed" --arg prefix "$UNAVAILABLE" '
+        .records[0].checked_at == $now
+        and ((.records[0].error // "" | startswith($prefix)) == ($failed == 1))' \
         "$home/data/$task/contributions.json" >/dev/null || fail "owner $task did not receive the shared result ($mode)"
     done
   done
@@ -731,7 +769,6 @@ test_done_task_open_pr_still_observed() {
 
 test_failure_wakes_once_per_episode() {
   local home out line='contributions: observation unavailable for https://github.com/o/r/pull/8'
-  local error='"forge observation unavailable or changed during read"'
   home=$(new_home failure-episode)
   forge_home "$home"
   wrap_forge "$home"
@@ -741,7 +778,7 @@ test_failure_wakes_once_per_episode() {
   [ "$out" = "$line" ] || fail "the first failure of an episode did not wake: $out"
   out=$(poll_at 2026-09-16T10:00:00Z)
   [ -z "$out" ] || fail "an unchanged read failure woke again on the next cycle: $out"
-  jq -e --argjson error "$error" '.records[0] | .checked_at == "2026-09-16T10:00:00Z" and .error == $error' \
+  jq -e --arg prefix "$UNAVAILABLE" '.records[0] | .checked_at == "2026-09-16T10:00:00Z" and (.error | startswith($prefix))' \
     "$home/data/delivery/contributions.json" >/dev/null || fail 'a repeated read failure stopped recording its error'
   [ "$(grep -cFx 'api repos/o/r/pulls/8' "$home/forge/calls")" = 2 ] || fail 'a failing open PR stopped being observed'
   : > "$home/forge/fault"
@@ -757,7 +794,7 @@ test_failure_wakes_once_per_episode() {
 
 test_late_owner_keeps_failure_episode_suppressed() {
   local home out line='contributions: observation unavailable for https://github.com/o/r/pull/8'
-  local error='forge observation unavailable or changed during read' task
+  local task
   home=$(new_home late-owner-failure-episode)
   forge_home "$home"
   wrap_forge "$home"
@@ -770,7 +807,7 @@ test_late_owner_keeps_failure_episode_suppressed() {
     || fail 'late-owner failing poll failed'
   [ -z "$out" ] || fail "a late owner restarted an unchanged failure episode: $out"
   for task in delivery duplicate; do
-    jq -e --arg error "$error" '.records[0].error == $error' "$home/data/$task/contributions.json" >/dev/null \
+    jq -e --arg prefix "$UNAVAILABLE" '.records[0].error | startswith($prefix)' "$home/data/$task/contributions.json" >/dev/null \
       || fail "owner $task did not retain the shared failure evidence"
   done
   : > "$home/forge/fault"
@@ -789,7 +826,7 @@ test_late_owner_keeps_failure_episode_suppressed() {
 }
 
 failures=0
-for test_name in test_actor_coverage test_stale_verdict test_unchecked_is_not_silence test_newest_check_has_no_verdict test_comment_wake test_review_wake test_inline_wake test_ready_issue_wake test_fresh_issue_requires_maintainer test_missing_lane_remains_missing test_partial_freshness_keeps_measured_rows test_malformed_record_cannot_prove_silence test_issue_timeline_and_exact_ack test_verdict_retains_judged_head test_observed_replacement_refreshes_verdict test_unobserved_head_leaves_verdict_unknown test_away_yolo_is_fleet_work test_away_yolo_cross_home_is_fleet_work test_retired_and_unsupported_coverage test_unsupported_forge_is_not_fleet_work test_held_unsupported_forge_is_not_captain_work test_shared_contribution_signal_wakes_once test_watcher_keeps_diagnostics_separate_from_contribution_wakes test_expired_child_unsupported_forge_stays_unmeasured test_watcher_surfaces_new_contribution_once test_home_summary_coverage test_unreadable_pending_is_not_empty test_budget_refusal_between_calls test_budget_bounded_call_timeout test_genuine_failure_near_deadline_is_unavailable test_shared_url_observed_once test_terminal_contribution_settles test_late_owner_inherits_terminal_observation test_done_task_open_pr_still_observed test_failure_wakes_once_per_episode test_late_owner_keeps_failure_episode_suppressed; do
+for test_name in test_actor_coverage test_stale_verdict test_unchecked_is_not_silence test_newest_check_has_no_verdict test_comment_wake test_review_wake test_inline_wake test_ready_issue_wake test_fresh_issue_requires_maintainer test_missing_lane_remains_missing test_partial_freshness_keeps_measured_rows test_malformed_record_cannot_prove_silence test_issue_timeline_and_exact_ack test_verdict_retains_judged_head test_observed_replacement_refreshes_verdict test_unobserved_head_leaves_verdict_unknown test_away_yolo_is_fleet_work test_away_yolo_cross_home_is_fleet_work test_retired_and_unsupported_coverage test_unsupported_forge_is_not_fleet_work test_held_unsupported_forge_is_not_captain_work test_shared_contribution_signal_wakes_once test_watcher_keeps_diagnostics_separate_from_contribution_wakes test_expired_child_unsupported_forge_stays_unmeasured test_watcher_surfaces_new_contribution_once test_home_summary_coverage test_unreadable_pending_is_not_empty test_budget_refusal_between_calls test_budget_bounded_call_timeout test_slow_call_inside_budget_is_not_a_failure test_genuine_failure_near_deadline_is_unavailable test_failure_records_diagnosable_excerpt test_shared_url_observed_once test_terminal_contribution_settles test_late_owner_inherits_terminal_observation test_done_task_open_pr_still_observed test_failure_wakes_once_per_episode test_late_owner_keeps_failure_episode_suppressed; do
   ( "$test_name" ) || failures=$((failures + 1))
 done
 [ "$failures" -eq 0 ] || fail "$failures contribution regressions"
