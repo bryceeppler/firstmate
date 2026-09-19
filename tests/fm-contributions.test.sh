@@ -565,8 +565,11 @@ case "$fault:$*" in
     printf 'HTTP 502\n' >&2; exit 1 ;;
   fail:'api repos/o/r/pulls/8/reviews?'*) printf 'HTTP 502\n' >&2; exit 1 ;;
   down:*) printf 'HTTP 502\n' >&2; exit 1 ;;
-  hang:'api repos/o/r/pulls/8') sleep 4 ;;
+  hang:'api repos/o/r/pulls/8') sleep 30 ;;
   slow:'api repos/o/r/pulls/8') sleep 6 ;;
+  starve:'pr view '*)
+    printf '%s\n' "$(( $(cat "$FORGE/clock") + 2 ))" > "$FORGE/clock" ;;
+  starve:'api repos/o/r/issues/9') sleep 30 ;;
   head:'pr view '*) printf '{"headRefOid":"%s","reviewDecision":"APPROVED"}\n' "$(printf 'b%.0s' $(seq 40))"; exit 0 ;;
 esac
 exec "$(dirname "$0")/gh-fixture" "$@"
@@ -622,13 +625,73 @@ test_timed_out_url_yields_its_place() {
   [ -z "$out" ] || fail "a read killed at its bound woke firstmate: $out"
   jq -e '.records[0].checked_at == "2026-09-16T08:00:00Z"' "$home/data/filed/contributions.json" >/dev/null \
     || fail 'the second contribution was somehow read while the first consumed the whole budget'
-  out=$(with_home "$home" env FM_CONTRIBUTIONS_NOW=2026-09-16T10:00:00Z FM_CONTRIBUTIONS_BUDGET=3 \
+  out=$(with_home "$home" env FM_CONTRIBUTIONS_NOW=2026-09-16T10:00:00Z FM_CONTRIBUTIONS_BUDGET=6 \
     "$ROOT/bin/fm-contributions.sh" poll) || fail 'poll failed behind a read that never answers'
-  [ -z "$out" ] || fail "a second unmeasured attempt woke firstmate: $out"
+  [ -z "$out" ] || fail "a read taken behind a noted attempt woke firstmate: $out"
   jq -e '.records[0] | .checked_at == "2026-09-16T10:00:00Z" and .error == null' \
     "$home/data/filed/contributions.json" >/dev/null \
     || fail "a URL whose read never answers blocked every other contribution: $(cat "$home/data/filed/contributions.json")"
   pass 'a read killed at its bound yields its place so the rest of the corpus is read'
+}
+
+test_unmeasured_url_sorts_after_same_poll_reads() {
+  local home out first
+  home=$(new_home unmeasured-order)
+  forge_home "$home"
+  wrap_forge "$home"
+  printf -- '- [ ] filed - Measured defect https://github.com/o/r/issues/9 (repo: sample) (kind: ship)\n' >> "$home/data/backlog.md"
+  with_home "$home" "$ROOT/bin/fm-contributions.sh" poll >/dev/null || fail 'could not observe both contributions'
+  # The PR is the oldest read, so it leads the order until its read is noted.
+  mutate_record "$home" delivery '.records[0].checked_at="2026-09-15T08:00:00Z"'
+  # A frozen clock leaves the budget whole after the leading read is killed, so
+  # one poll both notes an attempt and measures another URL against the same NOW.
+  /bin/date +%s > "$home/forge/clock"
+  printf 'hang\n' > "$home/forge/fault"
+  out=$(with_home "$home" env FM_CONTRIBUTIONS_NOW=2026-09-16T09:00:00Z FM_CONTRIBUTIONS_BUDGET=3 \
+    "$ROOT/bin/fm-contributions.sh" poll) || fail 'poll failed on a read that never answered'
+  [ -z "$out" ] || fail "a read killed at its bound woke firstmate: $out"
+  jq -e '.records[0] | .attempted_at == "2026-09-16T09:00:00Z" and .unmeasured == 1' \
+    "$home/data/delivery/contributions.json" >/dev/null \
+    || fail "the leading read noted no attempt: $(cat "$home/data/delivery/contributions.json")"
+  jq -e '.records[0].checked_at == "2026-09-16T09:00:00Z"' "$home/data/filed/contributions.json" >/dev/null \
+    || fail 'the second contribution was not measured in the same poll'
+  : > "$home/forge/calls"
+  with_home "$home" env FM_CONTRIBUTIONS_NOW=2026-09-16T10:00:00Z FM_CONTRIBUTIONS_BUDGET=3 \
+    "$ROOT/bin/fm-contributions.sh" poll >/dev/null || fail 'poll failed behind a noted attempt'
+  first=$(head -n 1 "$home/forge/calls")
+  [ "$first" = 'api repos/o/r/issues/9' ] \
+    || fail "the noted attempt was read before the URL measured beside it: $first"
+  pass 'a noted attempt sorts behind every URL measured in the same poll'
+}
+
+test_starved_read_earns_no_strike() {
+  local home out at
+  home=$(new_home starved-read)
+  forge_home "$home"
+  wrap_forge "$home"
+  printf -- '- [ ] filed - Measured defect https://github.com/o/r/issues/9 (repo: sample) (kind: ship)\n' >> "$home/data/backlog.md"
+  with_home "$home" "$ROOT/bin/fm-contributions.sh" poll >/dev/null || fail 'could not observe both contributions'
+  # The PR leads and its read spends the budget, so the issue reads on leftovers.
+  mutate_record "$home" delivery '.records[0].checked_at="2026-09-15T08:00:00Z"'
+  cp "$home/data/filed/contributions.json" "$home/prior-filed.json"
+  /bin/date +%s > "$home/forge/clock"
+  printf 'starve\n' > "$home/forge/fault"
+  out=$(with_home "$home" env FM_CONTRIBUTIONS_NOW=2026-09-16T09:00:00Z FM_CONTRIBUTIONS_BUDGET=3 \
+    "$ROOT/bin/fm-contributions.sh" poll) || fail 'poll failed when the leading read spent the budget'
+  [ -z "$out" ] || fail "a starved read woke firstmate: $out"
+  grep -Fx 'api repos/o/r/issues/9' "$home/forge/calls" >/dev/null || fail 'the starved read never reached the forge'
+  cmp -s "$home/prior-filed.json" "$home/data/filed/contributions.json" \
+    || fail "a starved read rewrote its own record: $(cat "$home/data/filed/contributions.json")"
+  for at in 2026-09-16T10:00:00Z 2026-09-16T11:00:00Z; do
+    out=$(with_home "$home" env FM_CONTRIBUTIONS_NOW="$at" FM_CONTRIBUTIONS_BUDGET=3 \
+      "$ROOT/bin/fm-contributions.sh" poll) || fail "poll at $at failed"
+    [ -z "$out" ] || fail "a repeatedly starved read woke firstmate ($at): $out"
+  done
+  jq -e '.records[0] | .error == null and (.unmeasured // 0) <= 1' "$home/data/filed/contributions.json" >/dev/null \
+    || fail "starved reads accrued strikes: $(cat "$home/data/filed/contributions.json")"
+  jq -e '.records[0].checked_at == "2026-09-16T11:00:00Z"' "$home/data/delivery/contributions.json" >/dev/null \
+    || fail 'the leading contribution stopped being measured'
+  pass 'a read starved of another read leftovers keeps its place without a strike'
 }
 
 test_repeated_timeout_surfaces_as_failure() {
@@ -888,7 +951,7 @@ test_late_owner_keeps_failure_episode_suppressed() {
 }
 
 failures=0
-for test_name in test_actor_coverage test_stale_verdict test_unchecked_is_not_silence test_newest_check_has_no_verdict test_comment_wake test_review_wake test_inline_wake test_ready_issue_wake test_fresh_issue_requires_maintainer test_missing_lane_remains_missing test_partial_freshness_keeps_measured_rows test_malformed_record_cannot_prove_silence test_issue_timeline_and_exact_ack test_verdict_retains_judged_head test_observed_replacement_refreshes_verdict test_unobserved_head_leaves_verdict_unknown test_away_yolo_is_fleet_work test_away_yolo_cross_home_is_fleet_work test_retired_and_unsupported_coverage test_unsupported_forge_is_not_fleet_work test_held_unsupported_forge_is_not_captain_work test_shared_contribution_signal_wakes_once test_watcher_keeps_diagnostics_separate_from_contribution_wakes test_expired_child_unsupported_forge_stays_unmeasured test_watcher_surfaces_new_contribution_once test_home_summary_coverage test_unreadable_pending_is_not_empty test_budget_refusal_between_calls test_budget_bounded_call_timeout test_timed_out_url_yields_its_place test_repeated_timeout_surfaces_as_failure test_slow_call_inside_budget_is_not_a_failure test_genuine_failure_near_deadline_is_unavailable test_failure_records_diagnosable_excerpt test_shared_url_observed_once test_terminal_contribution_settles test_late_owner_inherits_terminal_observation test_done_task_open_pr_still_observed test_failure_wakes_once_per_episode test_late_owner_keeps_failure_episode_suppressed; do
+for test_name in test_actor_coverage test_stale_verdict test_unchecked_is_not_silence test_newest_check_has_no_verdict test_comment_wake test_review_wake test_inline_wake test_ready_issue_wake test_fresh_issue_requires_maintainer test_missing_lane_remains_missing test_partial_freshness_keeps_measured_rows test_malformed_record_cannot_prove_silence test_issue_timeline_and_exact_ack test_verdict_retains_judged_head test_observed_replacement_refreshes_verdict test_unobserved_head_leaves_verdict_unknown test_away_yolo_is_fleet_work test_away_yolo_cross_home_is_fleet_work test_retired_and_unsupported_coverage test_unsupported_forge_is_not_fleet_work test_held_unsupported_forge_is_not_captain_work test_shared_contribution_signal_wakes_once test_watcher_keeps_diagnostics_separate_from_contribution_wakes test_expired_child_unsupported_forge_stays_unmeasured test_watcher_surfaces_new_contribution_once test_home_summary_coverage test_unreadable_pending_is_not_empty test_budget_refusal_between_calls test_budget_bounded_call_timeout test_timed_out_url_yields_its_place test_unmeasured_url_sorts_after_same_poll_reads test_starved_read_earns_no_strike test_repeated_timeout_surfaces_as_failure test_slow_call_inside_budget_is_not_a_failure test_genuine_failure_near_deadline_is_unavailable test_failure_records_diagnosable_excerpt test_shared_url_observed_once test_terminal_contribution_settles test_late_owner_inherits_terminal_observation test_done_task_open_pr_still_observed test_failure_wakes_once_per_episode test_late_owner_keeps_failure_episode_suppressed; do
   ( "$test_name" ) || failures=$((failures + 1))
 done
 [ "$failures" -eq 0 ] || fail "$failures contribution regressions"

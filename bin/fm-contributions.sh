@@ -41,14 +41,17 @@
 # A final observation applies to every owner without another forge read. A read
 # the budget refused outright is unmeasured, not unavailable: the poll ends with
 # that URL's records untouched and prints nothing, so the URL is read first next
-# poll. A read killed at its bound is unmeasured too, but the attempt is
-# recorded: the URL yields its place in the reading order and the poll continues
-# under whatever budget remains. Three consecutive unmeasured attempts on one
-# URL are reported as a failure, so a read that never fits the budget still
-# surfaces. Only a genuine forge failure, a malformed payload, a projection the
-# observation cannot satisfy, or a head change during observation records an
-# error, and that error carries the failing call plus a bounded excerpt of its
-# stderr.
+# poll. A read killed at its bound is unmeasured too. Only the poll's first
+# read holds the whole budget, so only that read can be hung rather than merely
+# starved: the attempt is recorded, which sorts the URL behind every URL
+# measured in the same poll, and three consecutive such attempts on one URL are
+# reported as a failure, so a read that never fits the budget still surfaces. A
+# later read killed on what an earlier read left was starved, not hung: the
+# poll ends with that URL's records untouched, so it keeps its place and leads
+# the next poll with the whole budget. Only a genuine forge failure, a
+# malformed payload, a projection the observation cannot satisfy, or a head
+# change during observation records an error, and that error carries the
+# failing call plus a bounded excerpt of its stderr.
 # API failure leaves error evidence; an expired or absent observation is not
 # silence. FM_CONTRIBUTIONS_MAX_AGE (default 900 seconds) bounds freshness.
 # A URL whose last good observation is merged or closed is final: it is
@@ -199,6 +202,7 @@ forge() {
   remaining=$((DEADLINE - $(date +%s)))
   # The budget, not the forge, refused this read.
   [ "$remaining" -gt 0 ] || { UNMEASURED=refused; return 1; }
+  FORGE_CALLS=$((FORGE_CALLS + 1))
   fm_run_timed "$remaining" env GH_PROMPT_DISABLED=1 GH_NO_UPDATE_NOTIFIER=1 \
     gh "$@" 2> "$TMP/forge.err" || rc=$?
   # A read killed at that bound never answered, so no owner's record may claim
@@ -349,7 +353,7 @@ note_attempt() { # canonical-url kind strikes task... : a read that never answer
 }
 
 poll() {
-  local task url kind error observed strikes
+  local task url kind error observed strikes spent
   local -a row
   acquire
   get_input
@@ -358,12 +362,14 @@ poll() {
   # One line per distinct URL: the URL, then every owning task.
   jq_lib -nr --slurpfile input "$TMP/input.json" --slurpfile saved "$TMP/saved.json" '
     known($input[0];$saved[0]) | map(. as $k | . + {at:([$saved[0][] | select(.task == $k.task) | .records[]
-      | select(.url == $k.url) | ([.checked_at, .attempted_at] | map(. // "") | max)] | first // "")})
+      | select(.url == $k.url) | [([.checked_at, .attempted_at] | map(. // "") | max),
+        (if (.attempted_at // "") > (.checked_at // "") then 1 else 0 end)]] | first // ["",0])})
     | group_by(.url) | map({url:.[0].url,at:(map(.at) | min),tasks:(map(.task) | unique)})
     | sort_by(.at,.tasks[0],.url)[] | [.url] + .tasks | @tsv' > "$TMP/known.tsv"
   DEADLINE=$(( $(date +%s) + BUDGET ))
   UNMEASURED=''
   FORGE_FAILURE=''
+  FORGE_CALLS=0
   while IFS=$'\t' read -r -a row; do
     [ "${#row[@]}" -ge 2 ] || continue
     [ "$(date +%s)" -lt "$DEADLINE" ] || break
@@ -377,14 +383,18 @@ poll() {
     fi
     case "$url" in */issues/*) kind=issue ;; *) kind="pr" ;; esac
     observed=0
+    spent=$FORGE_CALLS
     observe "$url" || observed=$?
     # The budget refused a read outright: keep every owner's prior record
     # untouched so this URL is read first next poll.
     [ "$UNMEASURED" != refused ] || break
-    # A read killed at its bound never answered either, but blocking the whole
-    # corpus on it would be silent forever: record the attempt, let the URL fall
-    # to the back of the reading order, and report it as a failure on the third.
     if [ "$UNMEASURED" = timeout ]; then
+      # A read killed on what an earlier read left was starved, not hung: keep
+      # its records untouched, like a refusal, so it leads the next poll with
+      # the whole budget. Only the first read of the poll held that budget, and
+      # blocking the corpus on it would be silent forever: record the attempt so
+      # the URL falls behind, and report it as a failure on the third.
+      [ "$spent" -eq 0 ] || break
       strikes=$(unmeasured_strikes "$url" "${row[@]:1}")
       if [ "$strikes" -lt 3 ]; then
         note_attempt "$url" "$kind" "$strikes" "${row[@]:1}"
