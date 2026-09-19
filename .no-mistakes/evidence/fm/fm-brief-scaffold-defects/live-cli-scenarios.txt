@@ -1,0 +1,64 @@
+SCENARIO 1: AGENTS-only repository remains untouched
+unchanged: /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/tmp.rx9sfZlFwi/agents-only keeps AGENTS.md alone; left as is
+unchanged: /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/tmp.rx9sfZlFwi/agents-only keeps AGENTS.md alone; left as is
+observed: AGENTS.md byte-identical after two runs; CLAUDE.md absent; maintenance section absent
+
+SCENARIO 2: supported memory conventions still receive canonical files
+fresh: created: AGENTS.md and CLAUDE.md @AGENTS.md pointer in /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/tmp.rx9sfZlFwi/fresh
+promoted: promoted: moved CLAUDE.md to AGENTS.md and wrote CLAUDE.md @AGENTS.md pointer in /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/tmp.rx9sfZlFwi/promoted
+pointer: updated: added ## Maintaining this file to AGENTS.md in /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/tmp.rx9sfZlFwi/pointer
+observed fresh: real AGENTS.md; real CLAUDE.md pointer; maintenance sections=1
+observed promoted: real AGENTS.md; real CLAUDE.md pointer; maintenance sections=1
+observed pointer: real AGENTS.md; real CLAUDE.md pointer; maintenance sections=1
+observed: existing content survived promotion and pointer-convention injection
+
+SCENARIO 3: no-mistakes brief names the CI-green PR as done before commit
+scaffolded: /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/tmp.rx9sfZlFwi/brief-home/data/live-nm/brief.md (ship, mode=no-mistakes; replace {TASK} and {FIRSTMATE_SPEC})
+# Definition of done
+Delivery contract: mode=no-mistakes
+This task ships **no-mistakes**: the deliverable is a PR with CI green, and you are done only once you have appended `done: PR {url} checks green` to the status file.
+Committing your implementation is a step on the way there, never completion.
+That step: when the implementation is committed on your branch, append `done: implemented, ready to validate - {summary}` to the status file and stop.
+Firstmate will then instruct you to run /no-mistakes to validate and ship the PR, and you carry the task through to the CI-green report below.
+
+You drive no-mistakes by responding to its gates, not by implementing fixes.
+observed first done instruction: This task ships **no-mistakes**: the deliverable is a PR with CI green, and you are done only once you have appended `done: PR {url} checks green` to the status file.
+
+SCENARIO 4: direct-PR brief names the PR as done before commit
+scaffolded: /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/tmp.rx9sfZlFwi/brief-home/data/live-direct/brief.md (ship, mode=direct-PR; replace {TASK} and {FIRSTMATE_SPEC})
+# Definition of done
+Delivery contract: mode=direct-PR
+This task ships **direct-PR**: you raise the PR yourself, without the no-mistakes pipeline.
+The deliverable is the PR, and you are done only once you have appended `done: PR {url}` to the status file.
+Committing your implementation is a step on the way there, never completion.
+When it is implemented and committed, push your branch and open a PR with `gh-axi`, then append that `done: PR {url}` line and stop.
+Do NOT run /no-mistakes. The configured merge authority decides whether to merge the PR; firstmate relays the outcome.
+observed first done instruction: The deliverable is the PR, and you are done only once you have appended `done: PR {url}` to the status file.
+
+ALL LIVE CLI SCENARIOS PASSED
+
+BEFORE-FIX REPRODUCTION AT BASE COMMIT
+updated: added ## Maintaining this file to AGENTS.md and wrote CLAUDE.md @AGENTS.md pointer in /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/tmp.WTUoqE4bYh/agents-only
+observed base defect: AGENTS-only repository gained CLAUDE.md and the maintenance section
+# Definition of done
+Delivery contract: mode=no-mistakes
+The task is complete only when committed on your branch.
+When you believe it is complete, append `done: {summary}` to the status file and stop.
+Firstmate will then instruct you to run /no-mistakes to validate and ship a PR.
+
+observed base defect: implementation completion and stop instruction precede the PR deliverable
+
+SCENARIO 5: help documents the AGENTS-only exception
+usage: fm-ensure-agents-md.sh [repo-or-worktree-dir]
+
+A repository that keeps a real AGENTS.md and no CLAUDE.md is left untouched:
+that is its own convention, so no pointer and no canonical section are added.
+
+The canonical section is added only to created skeletons, promoted CLAUDE.md
+files, and repositories already on the CLAUDE.md pointer convention.
+
+Where it does apply, retain equivalent project-owned maintenance guidance
+without it by using this exact first line of AGENTS.md (LF or CRLF):
+<!-- firstmate:maintained-by-project -->
+The mark declares retained guidance, not permission to remove governance.
+Without that first line or the exact canonical heading, the helper adds the section.
