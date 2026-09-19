@@ -1,0 +1,21 @@
+SCENARIO: starved second URL remains silent and does not accumulate false strikes
+poll_at=2026-09-16T09:00:00Z output=<empty>
+poll_at=2026-09-16T10:00:00Z output=<empty>
+poll_at=2026-09-16T11:00:00Z output=<empty>
+issue_record={"checked_at":"2026-09-16T08:00:00Z","error":null,"attempted_at":"2026-09-16T10:00:00Z","unmeasured":1}
+wake_queue_lines=0
+
+SCENARIO: a full-budget hang wakes on the third attempt and clears on recovery
+poll_at=2026-09-16T09:00:00Z output=<empty>
+record_at=2026-09-16T09:00:00Z {"checked_at":"2026-09-16T08:00:00Z","error":null,"attempted_at":"2026-09-16T09:00:00Z","unmeasured":1}
+poll_at=2026-09-16T10:00:00Z output=<empty>
+record_at=2026-09-16T10:00:00Z {"checked_at":"2026-09-16T08:00:00Z","error":null,"attempted_at":"2026-09-16T10:00:00Z","unmeasured":2}
+poll_at=2026-09-16T11:00:00Z output=contributions: observation unavailable for https://github.com/o/r/pull/8
+record_at=2026-09-16T11:00:00Z {"checked_at":"2026-09-16T11:00:00Z","error":"forge observation unavailable or changed during read: gh api repos/o/r/pulls/8: no answer within 1s","attempted_at":null,"unmeasured":null}
+recovery_output=<empty>
+recovered_record={"checked_at":"2026-09-16T12:00:00Z","error":null,"attempted_at":null,"unmeasured":null,"state":"open"}
+wake_queue_lines=0
+
+SCENARIO: genuine forge failure wakes immediately with bounded evidence
+poll_output=contributions: observation unavailable for https://github.com/o/r/pull/8
+failure_record={"checked_at":"2026-09-16T08:00:00Z","error":"forge observation unavailable or changed during read: gh api repos/o/r/pulls/8/reviews?per_page=100 --paginate --slurp: HTTP 502 "}

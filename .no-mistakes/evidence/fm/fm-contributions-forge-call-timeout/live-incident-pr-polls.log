@@ -1,0 +1,36 @@
+scenario=firstmate-4724
+url=https://github.com/kunchenguid/firstmate/pull/4724
+exit=0
+elapsed_seconds=6
+poll_output=<empty>
+{
+  "task": "incident",
+  "record": {
+    "url": "https://github.com/kunchenguid/firstmate/pull/4724",
+    "checked_at": "2026-09-19T17:44:46Z",
+    "error": null,
+    "state": "open",
+    "head": "c6668b3e52ce999d53f561f8d19e1e25678c96b8",
+    "attempted_at": null,
+    "unmeasured": null
+  }
+}
+wake_queue=empty
+scenario=hzbook-746
+url=https://github.com/bryceeppler/hzbook/pull/746
+exit=0
+elapsed_seconds=6
+poll_output=<empty>
+{
+  "task": "incident",
+  "record": {
+    "url": "https://github.com/bryceeppler/hzbook/pull/746",
+    "checked_at": "2026-09-19T17:44:52Z",
+    "error": null,
+    "state": "open",
+    "head": "a96966e20385fece89072b2c31b43aec174f88c3",
+    "attempted_at": null,
+    "unmeasured": null
+  }
+}
+wake_queue=empty

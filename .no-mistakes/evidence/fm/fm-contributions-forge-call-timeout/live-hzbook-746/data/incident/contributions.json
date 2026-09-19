@@ -1,0 +1,92 @@
+{
+  "schema": "fm-contributions.v1",
+  "task": "incident",
+  "records": [
+    {
+      "url": "https://github.com/bryceeppler/hzbook/pull/746",
+      "kind": "pr",
+      "checked_at": "2026-09-19T17:44:52Z",
+      "observation": {
+        "head": "a96966e20385fece89072b2c31b43aec174f88c3",
+        "state": "open",
+        "draft": false,
+        "mergeable": "mergeable",
+        "can_merge": true,
+        "review_decision": "",
+        "reviews": [],
+        "checks": [
+          {
+            "name": "check",
+            "id": 105436658596,
+            "status": "completed",
+            "conclusion": "success",
+            "started_at": "2026-09-18T00:38:07Z"
+          },
+          {
+            "name": "Vercel Preview Comments",
+            "id": 105432181856,
+            "status": "completed",
+            "conclusion": "success",
+            "started_at": "2026-09-18T00:17:09Z"
+          },
+          {
+            "name": "Vercel Preview Comments",
+            "id": 105431999927,
+            "status": "completed",
+            "conclusion": "success",
+            "started_at": "2026-09-18T00:16:19Z"
+          },
+          {
+            "name": "browser",
+            "id": 105431987814,
+            "status": "completed",
+            "conclusion": "success",
+            "started_at": "2026-09-18T00:16:19Z"
+          },
+          {
+            "name": "lint",
+            "id": 105431987610,
+            "status": "completed",
+            "conclusion": "success",
+            "started_at": "2026-09-18T00:16:19Z"
+          },
+          {
+            "name": "application",
+            "id": 105431987608,
+            "status": "completed",
+            "conclusion": "success",
+            "started_at": "2026-09-18T00:16:19Z"
+          },
+          {
+            "name": "Vercel Preview Comments",
+            "id": 105431844503,
+            "status": "completed",
+            "conclusion": "success",
+            "started_at": "2026-09-18T00:15:37Z"
+          },
+          {
+            "name": "Vercel",
+            "id": 54415244905,
+            "started_at": "2026-09-18T00:17:08Z",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Vercel",
+            "id": 54415176171,
+            "started_at": "2026-09-18T00:15:37Z",
+            "status": "in_progress",
+            "conclusion": null
+          }
+        ],
+        "events": [],
+        "absent_checks": []
+      },
+      "verdict": null,
+      "seen": [],
+      "pending": [],
+      "notified": [],
+      "error": null
+    }
+  ]
+}

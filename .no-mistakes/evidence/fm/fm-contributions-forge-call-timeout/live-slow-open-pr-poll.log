@@ -1,0 +1,18 @@
+scenario=real-open-pr-with-six-second-first-call
+exit=0
+elapsed_seconds=12
+poll_output=<empty>
+delayed_call=api repos/kunchenguid/firstmate/pulls/4724
+{
+  "task": "incident",
+  "record": {
+    "url": "https://github.com/kunchenguid/firstmate/pull/4724",
+    "checked_at": "2026-09-19T17:45:25Z",
+    "error": null,
+    "state": "open",
+    "head": "c6668b3e52ce999d53f561f8d19e1e25678c96b8",
+    "attempted_at": null,
+    "unmeasured": null
+  }
+}
+wake_queue=empty

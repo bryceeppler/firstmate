@@ -1,0 +1,11 @@
+bash: line 4: BASH_SOURCE[0]: unbound variable
+bash: line 4: /lib.sh: No such file or directory
+ok - budget exhausted mid-observation (exhaust) keeps the prior observation and stays silent
+ok - budget exhausted mid-observation (hang) keeps the prior observation and stays silent
+ok - a read killed at its bound yields its place so the rest of the corpus is read
+ok - a noted attempt sorts behind every URL measured in the same poll
+ok - a read starved of another read leftovers keeps its place without a strike
+ok - three consecutive unmeasured reads surface as one failure and clear on recovery
+ok - a forge call slower than five seconds still answers inside the poll budget
+ok - a genuine forge failure inside the budget still records the error and wakes
+ok - a hard forge failure names the failing call and its stderr excerpt

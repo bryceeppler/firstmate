@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -eu
+
+if [ "$*" = "api repos/kunchenguid/firstmate/pulls/4724" ]; then
+  printf 'delayed_call=%s\n' "$*" >> "$SLOW_REAL_GH_LOG"
+  sleep 6
+fi
+
+exec /Users/bryceeppler/.local/bin/gh "$@"

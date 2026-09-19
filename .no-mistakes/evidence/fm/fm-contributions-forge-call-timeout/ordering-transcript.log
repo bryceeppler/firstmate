@@ -1,0 +1,5 @@
+first_poll_output=<empty>
+timed_out_pr={"checked_at":"2026-09-15T08:00:00Z","attempted_at":"2026-09-16T09:00:00Z","unmeasured":1,"error":null}
+same_poll_issue={"checked_at":"2026-09-16T09:00:00Z","attempted_at":null,"unmeasured":null,"error":null}
+next_poll_output=<empty>
+next_poll_first_call=api repos/o/r/issues/9
