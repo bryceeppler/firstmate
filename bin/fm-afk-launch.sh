@@ -20,9 +20,9 @@
 # mode) on a claude, cursor, opencode, omp, grok, or codex primary whose home
 # opted into the supervision host (config/supervision-host), where the host
 # runs the away session; `enter` there adds one line when the host has no
-# engine, because every away wake then reaches main. Every other harness still
-# runs the daemon for now, so `start` and `start-native` require the record
-# `enter` wrote before they launch the daemon.
+# engine, because every away wake then reaches main. Every other supported
+# harness and backend combination still runs the daemon for now, so `start` and
+# `start-native` require the record `enter` wrote before they launch it.
 # `stop` (the return, driven by bin/fm-afk-return.sh) shuts the daemon down,
 # clears state/.afk last, and archives the record under state/afk-contracts/.
 #
@@ -36,10 +36,10 @@
 # workspace with --no-focus, or a detached tmux session) that never touches the
 # captain's active tab, and NEVER uses shell `&` (which herdr/codex can reap).
 #
-# Correct supervisor targeting: the daemon finds the captain pane to inject into
-# from its OWN inherited env (discover_supervisor_target). Running it in a
+# Correct supervisor targeting: the daemon finds the captain endpoint to inject
+# into from its OWN inherited env (discover_supervisor_target). Running it in a
 # separate terminal would make it discover its OWN pane, so this captures the
-# captain pane FIRST (from the pane this script runs in) and passes it in as
+# captain endpoint FIRST (from the pane this script runs in) and passes it as
 # FM_SUPERVISOR_TARGET/FM_SUPERVISOR_BACKEND explicitly.
 #
 # Usage:
@@ -593,7 +593,7 @@ fm_afk_launch_start() {
   fm_afk_launch_catchup_pending && return 1
   fm_afk_launch_daemon_allowed || return 1
   fm_afk_launch_record_require || return 1
-  # Capture the captain pane FIRST, before creating anything.
+  # Capture the captain endpoint FIRST, before creating anything.
   captain_target=$(discover_supervisor_target) || {
     fm_afk_launch_log "could not resolve the captain supervisor pane (set FM_SUPERVISOR_TARGET)"
     return 1; }
