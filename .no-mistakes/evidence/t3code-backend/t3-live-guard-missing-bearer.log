@@ -1,0 +1,7 @@
+FM_TEST_BEGIN 2026-09-24T23:24:33Z tests/fm-backend-t3code-live-e2e.test.sh family=live-harness-optin expected_gate_skip=live-capability
+error: backend=t3code has no bearer token at /tmp/fm-t3-live-test.HAwAAe/config/t3code-token; mint one with: npx t3@0.0.43-nightly.20260923.2150 auth session issue --json --ttl 30d --label firstmate, then write its token field to /tmp/fm-t3-live-test.HAwAAe/config/t3code-token (mode 0600)
+not ok - T3 Code 0.0.43-nightly.20260923.2150 live guard failed (including cleanup)
+FM_TEST_END 2026-09-24T23:24:38Z tests/fm-backend-t3code-live-e2e.test.sh exit=1 duration_ms=3791 gate_skip=false
+FM_TEST_SUMMARY total=1 failed=1 skipped_gate=0 duration_ms=7852
+FM_TEST_SUMMARY_FAMILY family=live-harness-optin count=1 duration_ms=3791 failed=1
+FM_TEST_SLOWEST rank=1 script=tests/fm-backend-t3code-live-e2e.test.sh duration_ms=3791
