@@ -1,0 +1,9 @@
+Unconfigured home with installed T3 server: tmux
+Explicit config/backend=t3code: t3code
+Explicit FM_BACKEND=tmux overrides home: tmux
+Live server descriptor:
+{"environmentId":"859fd391-7d1b-4733-ad1d-59d5e12da15d","label":"MacBook Pro","platform":{"os":"darwin","arch":"arm64","machine":"laptop"},"serverVersion":"0.0.45-nightly.20261001.2539","orchestrationProtocolVersion":1,"capabilities":{"repositoryIdentity":true,"connectionProbe":true,"attachmentUploads":true,"questionAttachments":true,"fileAttachments":{"maxUploadBytes":52428800},"pullRequests":true,"inlineMessageContext":true,"requiredWorktreeBootstrap":true,"threadSettlement":true,"threadAutoSettlement":true,"storageCleanup":true,"projectWorktreeCleanup":true,"threadRestartContinuation":true,"projectSettingsOverrides":true,"threadSnooze":true,"environmentThemes":true,"usageLimitSources":true,"usagePriceOverrides":true,"threadPinning":true,"threadPinReorder":true,"threadActiveReorder":true,"threadAutoSettleOptOut":true,"threadTitleRegeneration":true,"threadPullRequestLinking":true,"threadPullRequests":true,"pullRequestStackActions":true,"serverSelfUpdate":"desktop-managed","serverSelfUpdateProgress":true,"serverUpdateThreadContinuation":true,"agentActivityPublishing":true,"projectCloneTracking":true,"environmentIcon":true,"desktopAppUpdate":true}}
+Runtime preflight with no bearer:
+error: backend=t3code has no bearer token at /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/.test-t3-tmp/fm-lab.sLmyXI/config/t3code-token; mint one with: npx t3@0.0.45-nightly.20261001.2539 auth session issue --json --ttl 30d --label firstmate, then write its token field to /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/.test-t3-tmp/fm-lab.sLmyXI/config/t3code-token (mode 0600)
+Runtime preflight exit=1
+Lab task metadata records=0

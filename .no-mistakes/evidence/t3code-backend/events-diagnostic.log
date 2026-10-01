@@ -1,0 +1,1251 @@
++ set -eu
+++ dirname tests/fm-backend-t3code-events.test.sh
++ . tests/lib.sh
+++ '[' -n '' ']'
+++ FM_TEST_LIB_SOURCED=1
+++ umask 022
++++ dirname tests/lib.sh
+++ . tests/git-config-helpers.sh
++++ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
++++ GIT_CONFIG_GLOBAL=/dev/null
++++ GIT_CONFIG_NOSYSTEM=1
+++ export FM_GATE_REFUSE_BYPASS=1
+++ FM_GATE_REFUSE_BYPASS=1
+++ export FM_TEST_SEAM=1
+++ FM_TEST_SEAM=1
+++ unset FM_TASK_ID
+++ unset TASKS_AXI_FILE TASKS_AXI_BACKEND
+++++ dirname tests/lib.sh
++++ cd tests/..
++++ pwd
+++ ROOT=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA
+++ FM_TEST_CLEANUP_DIRS=()
++++ mktemp /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//.fm-test-cleanup.59922.XXXXXX
+++ FM_TEST_CLEANUP_REGISTRY=/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//.fm-test-cleanup.59922.zSBSUl
++++ fm_test_pid_identity 59922
++++ local pid=59922
++++ FM_STATE_OVERRIDE=/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/
++++ bash -c '. "$1"; fm_pid_identity "$2"' _ /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-wake-lib.sh 59922
+++ FM_TEST_OWNER_IDENTITY='Thu Oct  1 14:37:24 2026     bash -x tests/fm-backend-t3code-events.test.sh'
++++ mktemp /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//.fm-test-procevent.59922.XXXXXX
+++ FM_TEST_PROCEVENT_REGISTRY=/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//.fm-test-procevent.59922.ILrzze
++++ mktemp /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//.fm-test-watcher.59922.XXXXXX
+++ FM_TEST_WATCHER_REGISTRY=/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//.fm-test-watcher.59922.GtsXs2
+++ FM_TEST_STUB_MAX_BLOCK_SECONDS=120
+++ export FM_TEST_STUB_MAX_BLOCK_SECONDS
+++ trap fm_test_cleanup EXIT
+++ trap 'fm_test_cleanup; exit 130' INT
+++ trap 'fm_test_cleanup; exit 143' TERM
+++ trap 'fm_test_cleanup; exit 129' HUP
+++ trap 'fm_test_cleanup; exit 131' QUIT
+++ FM_TEST_ORPHAN_MAX_AGE_SECONDS=3600
+++ '[' 1 '!=' 1 ']'
+++ fm_test_tmproot fm-t3-events
+++ local prefix=fm-t3-events root tmp_base
+++ tmp_base=/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/
+++ tmp_base=/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T
++++ mktemp -d /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.XXXXXX
+++ root=/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE
++++ cd -P -- /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE
++++ pwd -P
+++ root=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE
+++ printf '%s\n%s\n' 59922 'Thu Oct  1 14:37:24 2026     bash -x tests/fm-backend-t3code-events.test.sh'
+++ printf '%s\n' /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE
+++ printf '%s\n' /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE
++ TMP_ROOT=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE
++ mkdir -p /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state
++ printf 'test-token\n'
++ cat
++ printf 'edge\n'
++ SERVER_PID=60163
++ trap cleanup EXIT
++ node /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/server.cjs /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE
+++ seq 1 100
++ for _ in $(seq 1 100)
++ '[' '!' -s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/port ']'
++ sleep 0.1
++ for _ in $(seq 1 100)
++ '[' '!' -s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/port ']'
++ break
++ '[' -s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/port ']'
+++ cat /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/port
++ FM_T3CODE_ORIGIN=http://127.0.0.1:63710
++ export FM_T3CODE_ORIGIN
++ export FM_CONFIG_OVERRIDE=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config
++ FM_CONFIG_OVERRIDE=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config
++ . /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-backend.sh
+++ FM_BACKEND_SCRIPT=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-backend.sh
+++++ dirname /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-backend.sh
++++ cd /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin
++++ pwd
+++ FM_BACKEND_LIB_DIR=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin
+++ unset FM_BACKEND_SCRIPT
++++ cd /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/..
++++ pwd
+++ FM_BACKEND_DEFAULT_ROOT=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA
+++ FM_ROOT=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA
+++ FM_HOME=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA
+++ FM_BACKEND_CONFIG_DIR=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config
+++ FM_BACKEND_KNOWN='tmux herdr zellij orca cmux t3code'
+++ FM_BACKEND_SPAWN='tmux herdr zellij orca cmux t3code'
+++ FM_BACKEND_CMUX_BUNDLE_ID=com.cmuxterm.app
+++ FM_BACKEND_VISIBLE_CAPTURE='tmux herdr zellij'
++ . /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
+++ FM_TRANSITION_FIELD_SEP=$'\t'
++ fm_backend_has_push t3code
++ case "$1" in
++ return 0
++ fm_backend_events_capable t3code server
++ local backend=t3code
++ shift
++ fm_backend_has_push t3code
++ case "$1" in
++ return 0
++ fm_backend_source t3code
++ local name=t3code adapter rel sibling
++ fm_backend_validate t3code
++ local name=t3code
++ fm_backend_is_known t3code
++ fm_backend_list_contains 'tmux herdr zellij orca cmux t3code' t3code
++ local 'list=tmux herdr zellij orca cmux t3code' name=t3code
++ case "$name" in
++ case " $list " in
++ return 0
++ return 0
++ adapter=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ case "$name" in
++ set -- fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ for rel in "$@"
++ sibling=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ case "$name" in
++ '[' -z '' ']'
++ . /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
+++ FM_BACKEND_T3CODE_MIN_VERSION=0.0.44
+++ FM_BACKEND_T3CODE_API_JS=$'\nconst fs = require("fs");\nconst [method, path] = process.argv.slice(1);\nconst originEnv = process.env.FM_T3CODE_ORIGIN || "";\nconst runtimeFile = process.env.FM_T3CODE_RUNTIME_FILE;\nconst tokenFile = process.env.FM_T3CODE_TOKEN_FILE;\nfunction fail(code, msg) { console.error(msg); process.exit(code); }\nlet origin = originEnv;\nif (!origin) {\n  let raw;\n  try { raw = fs.readFileSync(runtimeFile, "utf8"); }\n  catch (err) { fail(3, `error: backend=t3code cannot find the T3 server origin: ${runtimeFile} is unreadable (${err.message}); start T3 Code so it writes that file, or set FM_T3CODE_ORIGIN`); }\n  try { origin = JSON.parse(raw).origin || ""; }\n  catch (err) { fail(3, `error: backend=t3code cannot parse ${runtimeFile}: ${err.message}`); }\n  if (!origin) fail(3, `error: backend=t3code found no origin in ${runtimeFile}`);\n}\norigin = origin.replace(/\\/+$/, "");\nconst needsAuth = !path.startsWith("/.well-known/");\nasync function serverVersion() {\n  try {\n    const res = await fetch(origin + "/.well-known/t3/environment", { signal: AbortSignal.timeout(10000) });\n    const data = await res.json();\n    return data.serverVersion || "<serverVersion>";\n  } catch { return "<serverVersion>"; }\n}\nasync function mintHint() {\n  return `mint one with: npx t3@${await serverVersion()} auth session issue --json --ttl 30d --label firstmate` +\n    `, then write its token field to ${tokenFile} (mode 0600)`;\n}\n(async () => {\n  const headers = { "content-type": "application/json" };\n  if (needsAuth) {\n    let token = "";\n    try { token = fs.readFileSync(tokenFile, "utf8").trim(); } catch { token = ""; }\n    if (!token) fail(2, `error: backend=t3code has no bearer token at ${tokenFile}; ${await mintHint()}`);\n    headers.authorization = `Bearer ${token}`;\n  }\n  const init = { method, headers, signal: AbortSignal.timeout(10000) };\n  if (method === "POST") init.body = fs.readFileSync(0, "utf8");\n  let res;\n  try { res = await fetch(origin + path, init); }\n  catch (err) { fail(5, `error: backend=t3code cannot reach the T3 server at ${origin}: ${err.message}; start T3 Code and retry`); }\n  let text;\n  try { text = await res.text(); }\n  catch (err) { fail(5, `error: backend=t3code could not read the T3 response at ${origin}: ${err.message}; retry`); }\n  if (res.ok) { process.stdout.write(text); return; }\n  let reason = text;\n  try { const data = JSON.parse(text); reason = data.reason || data.message || data.code || text; } catch {}\n  if (res.status === 401) fail(2, `error: the T3 server rejected the bearer at ${tokenFile} (401: ${reason}); ${await mintHint()}`);\n  fail(res.status === 404 ? 4 : 1, `error: T3 ${method} ${path} failed (${res.status}): ${reason}`);\n})();\n'
++ _FM_BACKEND_T3CODE_SOURCED=1
++ case "$backend" in
++ fm_backend_t3code_events_capable server
++ node -e 'process.exit(typeof WebSocket === "function" ? 0 : 1)'
++ fm_backend_t3code_runtime_check
+++ fm_backend_wait_transition t3code server 2 /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
+++ local backend=t3code
+++ shift
+++ fm_backend_has_push t3code
+++ case "$1" in
+++ return 0
+++ fm_backend_source t3code
+++ local name=t3code adapter rel sibling
+++ fm_backend_validate t3code
+++ local name=t3code
+++ fm_backend_is_known t3code
+++ fm_backend_list_contains 'tmux herdr zellij orca cmux t3code' t3code
+++ local 'list=tmux herdr zellij orca cmux t3code' name=t3code
+++ case "$name" in
+++ case " $list " in
+++ return 0
+++ return 0
+++ adapter=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
+++ case "$name" in
+++ set -- fm-transition-lib.sh
+++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
+++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
+++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
+++ for rel in "$@"
+++ sibling=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
+++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
+++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
+++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
+++ case "$name" in
+++ '[' -z 1 ']'
+++ case "$backend" in
+++ fm_backend_t3code_wait_transition server 2 /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
+++ local timeout=2 state=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state
+++ shift 3
+++ '[' 1 -gt 0 ']'
+++ '[' 0 '!=' 1 ']'
+++ fm_backend_t3code_events_capable
+++ node -e 'process.exit(typeof WebSocket === "function" ? 0 : 1)'
+++ fm_backend_t3code_runtime_check
++++ dirname /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
+++ . /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/../fm-transition-lib.sh
++++ FM_TRANSITION_FIELD_SEP=$'\t'
+++ reader=()
+++ local reader word dir pid line record marker action rc=1 reader_rc=0
+++ IFS=
+++ read -r word
++++ fm_backend_t3code_event_reader_cmd
++++++ dirname /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
+++++ cd /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends
+++++ pwd
++++ printf 'node\n%s/t3code-eventwait.cjs\n' /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends
+++ reader+=("$word")
+++ IFS=
+++ read -r word
+++ reader+=("$word")
+++ IFS=
+++ read -r word
++++ mktemp -d /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.XXXXXX
+++ dir=/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.99OZh6
+++ mkfifo /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.99OZh6/events
+++ pid=61574
+++ exec
++++ fm_backend_t3code_runtime_file
++++ printf %s/.t3/userdata/server-runtime.json /Users/bryceeppler
+++ FM_T3CODE_RUNTIME_FILE=/Users/bryceeppler/.t3/userdata/server-runtime.json
++++ fm_backend_t3code_config_dir
++++ printf %s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config
+++ FM_T3CODE_TOKEN_FILE=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config/t3code-token
+++ node /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code-eventwait.cjs 2 owned
+++ IFS=
+++ read -r line
+++ '[' subscribed '!=' subscribed ']'
+++ '[' 1 -eq 1 ']'
+++ IFS=
+++ read -r line
+++++ printf %s $'owned\tproject\trunning\tfalse\tcodex'
+++++ cut -f1
+++++ printf %s $'owned\tproject\trunning\tfalse\tcodex'
+++++ cut -f2
+++++ printf %s $'owned\tproject\trunning\tfalse\tcodex'
+++++ cut -f3
+++++ printf %s $'owned\tproject\trunning\tfalse\tcodex'
+++++ cut -f4
+++++ printf %s $'owned\tproject\trunning\tfalse\tcodex'
+++++ cut -f5
++++ fm_backend_t3code_normalize_event owned project running false codex
++++ local state row
+++++ fm_backend_t3code_state_row running
+++++ case "$1" in
+++++ printf 'busy alive'
++++ row='busy alive'
++++ case "$row" in
++++ state=working
++++ '[' alive = alive ']'
++++ '[' false = true ']'
++++ fm_transition_record owned project '' working codex
++++ local pane_id ws from to agent
+++++ fm_transition_clean_field owned
+++++ printf %s owned
+++++ LC_ALL=C
+++++ tr '\t\r\n' '   '
++++ pane_id=owned
+++++ fm_transition_clean_field project
+++++ printf %s project
+++++ LC_ALL=C
+++++ tr '\t\r\n' '   '
++++ ws=project
+++++ fm_transition_clean_field ''
+++++ printf %s ''
+++++ LC_ALL=C
+++++ tr '\t\r\n' '   '
++++ from=
+++++ fm_transition_clean_field working
+++++ printf %s working
+++++ LC_ALL=C
+++++ tr '\t\r\n' '   '
++++ to=working
+++++ fm_transition_clean_field codex
+++++ printf %s codex
+++++ LC_ALL=C
+++++ tr '\t\r\n' '   '
++++ agent=codex
++++ printf '%s\t%s\t%s\t%s\t%s' owned project '' working codex
+++ record=$'owned\tproject\t\tworking\tcodex'
+++++ fm_transition_pane_id $'owned\tproject\t\tworking\tcodex'
+++++ fm_transition_field $'owned\tproject\t\tworking\tcodex' 1
+++++ printf %s $'owned\tproject\t\tworking\tcodex'
+++++ cut $'-d\t' -f1
++++ fm_backend_t3code_escalation_marker /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
+++++ printf %s owned
+++++ tr :/. ___
++++ printf %s/.t3code-escalated-%s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
+++ marker=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state/.t3code-escalated-owned
+++++ fm_transition_to_status $'owned\tproject\t\tworking\tcodex'
+++++ fm_transition_field $'owned\tproject\t\tworking\tcodex' 4
+++++ printf %s $'owned\tproject\t\tworking\tcodex'
+++++ cut $'-d\t' -f4
++++ fm_transition_policy working
++++ case "$1" in
++++ printf absorb
+++ action=absorb
+++ case "$action" in
+++ rm -f /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state/.t3code-escalated-owned
+++ '[' 1 -eq 1 ']'
+++ IFS=
+++ read -r line
+++++ printf %s $'owned\tproject\trunning\ttrue\tcodex'
+++++ cut -f1
+++++ printf %s $'owned\tproject\trunning\ttrue\tcodex'
+++++ cut -f2
+++++ printf %s $'owned\tproject\trunning\ttrue\tcodex'
+++++ cut -f3
+++++ printf %s $'owned\tproject\trunning\ttrue\tcodex'
+++++ cut -f4
+++++ printf %s $'owned\tproject\trunning\ttrue\tcodex'
+++++ cut -f5
++++ fm_backend_t3code_normalize_event owned project running true codex
++++ local state row
+++++ fm_backend_t3code_state_row running
+++++ case "$1" in
+++++ printf 'busy alive'
++++ row='busy alive'
++++ case "$row" in
++++ state=working
++++ '[' alive = alive ']'
++++ '[' true = true ']'
++++ state=blocked
++++ fm_transition_record owned project '' blocked codex
++++ local pane_id ws from to agent
+++++ fm_transition_clean_field owned
+++++ printf %s owned
+++++ LC_ALL=C
+++++ tr '\t\r\n' '   '
++++ pane_id=owned
+++++ fm_transition_clean_field project
+++++ printf %s project
+++++ LC_ALL=C
+++++ tr '\t\r\n' '   '
++++ ws=project
+++++ fm_transition_clean_field ''
+++++ printf %s ''
+++++ LC_ALL=C
+++++ tr '\t\r\n' '   '
++++ from=
+++++ fm_transition_clean_field blocked
+++++ printf %s blocked
+++++ LC_ALL=C
+++++ tr '\t\r\n' '   '
++++ to=blocked
+++++ fm_transition_clean_field codex
+++++ printf %s codex
+++++ LC_ALL=C
+++++ tr '\t\r\n' '   '
++++ agent=codex
++++ printf '%s\t%s\t%s\t%s\t%s' owned project '' blocked codex
+++ record=$'owned\tproject\t\tblocked\tcodex'
+++++ fm_transition_pane_id $'owned\tproject\t\tblocked\tcodex'
+++++ fm_transition_field $'owned\tproject\t\tblocked\tcodex' 1
+++++ printf %s $'owned\tproject\t\tblocked\tcodex'
+++++ cut $'-d\t' -f1
++++ fm_backend_t3code_escalation_marker /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
+++++ printf %s owned
+++++ tr :/. ___
++++ printf %s/.t3code-escalated-%s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
+++ marker=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state/.t3code-escalated-owned
+++++ fm_transition_to_status $'owned\tproject\t\tblocked\tcodex'
+++++ fm_transition_field $'owned\tproject\t\tblocked\tcodex' 4
+++++ printf %s $'owned\tproject\t\tblocked\tcodex'
+++++ cut $'-d\t' -f4
++++ fm_transition_policy blocked
++++ case "$1" in
++++ printf actionable
+++ action=actionable
+++ case "$action" in
+++ '[' '!' -e /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state/.t3code-escalated-owned ']'
+++ printf %s $'owned\tproject\t\tblocked\tcodex'
+++ rc=0
+++ '[' 0 -eq 1 ']'
+++ '[' 0 -ne 1 ']'
+++ kill 61574
+++ wait 61574
+++ reader_rc=2
+++ exec
+++ rm -rf /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.99OZh6
+++ '[' 0 -ne 0 ']'
+++ return 0
++ record=$'owned\tproject\t\tblocked\tcodex'
+++ fm_transition_pane_id $'owned\tproject\t\tblocked\tcodex'
+++ fm_transition_field $'owned\tproject\t\tblocked\tcodex' 1
+++ printf %s $'owned\tproject\t\tblocked\tcodex'
+++ cut $'-d\t' -f1
++ '[' owned = owned ']'
+++ fm_transition_to_status $'owned\tproject\t\tblocked\tcodex'
+++ fm_transition_field $'owned\tproject\t\tblocked\tcodex' 4
+++ printf %s $'owned\tproject\t\tblocked\tcodex'
+++ cut $'-d\t' -f4
++ '[' blocked = blocked ']'
+++ fm_transition_workspace_id $'owned\tproject\t\tblocked\tcodex'
+++ fm_transition_field $'owned\tproject\t\tblocked\tcodex' 2
+++ printf %s $'owned\tproject\t\tblocked\tcodex'
+++ cut $'-d\t' -f2
++ '[' project = project ']'
++ fm_backend_commit_transition t3code /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state server $'owned\tproject\t\tblocked\tcodex'
++ local backend=t3code
++ shift
++ fm_backend_has_push t3code
++ case "$1" in
++ return 0
++ fm_backend_source t3code
++ local name=t3code adapter rel sibling
++ fm_backend_validate t3code
++ local name=t3code
++ fm_backend_is_known t3code
++ fm_backend_list_contains 'tmux herdr zellij orca cmux t3code' t3code
++ local 'list=tmux herdr zellij orca cmux t3code' name=t3code
++ case "$name" in
++ case " $list " in
++ return 0
++ return 0
++ adapter=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ case "$name" in
++ set -- fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ for rel in "$@"
++ sibling=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ case "$name" in
++ '[' -z 1 ']'
++ case "$backend" in
++ fm_backend_t3code_commit_transition /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state server $'owned\tproject\t\tblocked\tcodex'
++ local thread
+++ fm_transition_pane_id $'owned\tproject\t\tblocked\tcodex'
+++ fm_transition_field $'owned\tproject\t\tblocked\tcodex' 1
+++ printf %s $'owned\tproject\t\tblocked\tcodex'
+++ cut $'-d\t' -f1
++ thread=owned
++ '[' -n owned ']'
++ :
+++ fm_backend_t3code_escalation_marker /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++++ printf %s owned
++++ tr :/. ___
+++ printf %s/.t3code-escalated-%s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ printf 'level\n'
++ rc=0
++ fm_backend_wait_transition t3code server 0.2 /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ local backend=t3code
++ shift
++ fm_backend_has_push t3code
++ case "$1" in
++ return 0
++ fm_backend_source t3code
++ local name=t3code adapter rel sibling
++ fm_backend_validate t3code
++ local name=t3code
++ fm_backend_is_known t3code
++ fm_backend_list_contains 'tmux herdr zellij orca cmux t3code' t3code
++ local 'list=tmux herdr zellij orca cmux t3code' name=t3code
++ case "$name" in
++ case " $list " in
++ return 0
++ return 0
++ adapter=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ case "$name" in
++ set -- fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ for rel in "$@"
++ sibling=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ case "$name" in
++ '[' -z 1 ']'
++ case "$backend" in
++ fm_backend_t3code_wait_transition server 0.2 /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ local timeout=0.2 state=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state
++ shift 3
++ '[' 1 -gt 0 ']'
++ '[' 0 '!=' 1 ']'
++ fm_backend_t3code_events_capable
++ node -e 'process.exit(typeof WebSocket === "function" ? 0 : 1)'
++ fm_backend_t3code_runtime_check
+++ dirname /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ . /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/../fm-transition-lib.sh
+++ FM_TRANSITION_FIELD_SEP=$'\t'
++ reader=()
++ local reader word dir pid line record marker action rc=1 reader_rc=0
++ IFS=
++ read -r word
+++ fm_backend_t3code_event_reader_cmd
+++++ dirname /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++++ cd /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends
++++ pwd
+++ printf 'node\n%s/t3code-eventwait.cjs\n' /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends
++ reader+=("$word")
++ IFS=
++ read -r word
++ reader+=("$word")
++ IFS=
++ read -r word
+++ mktemp -d /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.XXXXXX
++ dir=/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.AlZY98
++ mkfifo /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.AlZY98/events
++ pid=62210
++ exec
+++ fm_backend_t3code_runtime_file
+++ printf %s/.t3/userdata/server-runtime.json /Users/bryceeppler
++ FM_T3CODE_RUNTIME_FILE=/Users/bryceeppler/.t3/userdata/server-runtime.json
+++ fm_backend_t3code_config_dir
+++ printf %s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config
++ FM_T3CODE_TOKEN_FILE=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config/t3code-token
++ node /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code-eventwait.cjs 0.2 owned
++ IFS=
++ read -r line
++ '[' subscribed '!=' subscribed ']'
++ '[' 1 -eq 1 ']'
++ IFS=
++ read -r line
++++ cut -f1
++++ printf %s $'owned\tproject\trunning\ttrue\tcodex'
++++ printf %s $'owned\tproject\trunning\ttrue\tcodex'
++++ cut -f2
++++ printf %s $'owned\tproject\trunning\ttrue\tcodex'
++++ cut -f3
++++ printf %s $'owned\tproject\trunning\ttrue\tcodex'
++++ cut -f4
++++ printf %s $'owned\tproject\trunning\ttrue\tcodex'
++++ cut -f5
+++ fm_backend_t3code_normalize_event owned project running true codex
+++ local state row
++++ fm_backend_t3code_state_row running
++++ case "$1" in
++++ printf 'busy alive'
+++ row='busy alive'
+++ case "$row" in
+++ state=working
+++ '[' alive = alive ']'
+++ '[' true = true ']'
+++ state=blocked
+++ fm_transition_record owned project '' blocked codex
+++ local pane_id ws from to agent
++++ fm_transition_clean_field owned
++++ printf %s owned
++++ LC_ALL=C
++++ tr '\t\r\n' '   '
+++ pane_id=owned
++++ fm_transition_clean_field project
++++ printf %s project
++++ LC_ALL=C
++++ tr '\t\r\n' '   '
+++ ws=project
++++ fm_transition_clean_field ''
++++ printf %s ''
++++ LC_ALL=C
++++ tr '\t\r\n' '   '
+++ from=
++++ fm_transition_clean_field blocked
++++ printf %s blocked
++++ LC_ALL=C
++++ tr '\t\r\n' '   '
+++ to=blocked
++++ fm_transition_clean_field codex
++++ printf %s codex
++++ LC_ALL=C
++++ tr '\t\r\n' '   '
+++ agent=codex
+++ printf '%s\t%s\t%s\t%s\t%s' owned project '' blocked codex
++ record=$'owned\tproject\t\tblocked\tcodex'
++++ fm_transition_pane_id $'owned\tproject\t\tblocked\tcodex'
++++ fm_transition_field $'owned\tproject\t\tblocked\tcodex' 1
++++ cut $'-d\t' -f1
++++ printf %s $'owned\tproject\t\tblocked\tcodex'
+++ fm_backend_t3code_escalation_marker /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++++ printf %s owned
++++ tr :/. ___
+++ printf %s/.t3code-escalated-%s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ marker=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state/.t3code-escalated-owned
++++ fm_transition_to_status $'owned\tproject\t\tblocked\tcodex'
++++ fm_transition_field $'owned\tproject\t\tblocked\tcodex' 4
++++ printf %s $'owned\tproject\t\tblocked\tcodex'
++++ cut $'-d\t' -f4
+++ fm_transition_policy blocked
+++ case "$1" in
+++ printf actionable
++ action=actionable
++ case "$action" in
++ '[' '!' -e /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state/.t3code-escalated-owned ']'
++ '[' 1 -eq 1 ']'
++ IFS=
++ read -r line
++ '[' 1 -ne 1 ']'
++ wait 62210
++ exec
++ rm -rf /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.AlZY98
++ '[' 1 -ne 0 ']'
++ '[' 1 -ne 2 ']'
++ '[' 0 -eq 0 ']'
++ return 1
++ rc=1
++ '[' 1 -eq 1 ']'
++ fm_backend_clear_transition t3code /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ local backend=t3code
++ shift
++ fm_backend_has_push t3code
++ case "$1" in
++ return 0
++ fm_backend_source t3code
++ local name=t3code adapter rel sibling
++ fm_backend_validate t3code
++ local name=t3code
++ fm_backend_is_known t3code
++ fm_backend_list_contains 'tmux herdr zellij orca cmux t3code' t3code
++ local 'list=tmux herdr zellij orca cmux t3code' name=t3code
++ case "$name" in
++ case " $list " in
++ return 0
++ return 0
++ adapter=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ case "$name" in
++ set -- fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ for rel in "$@"
++ sibling=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ case "$name" in
++ '[' -z 1 ']'
++ case "$backend" in
++ fm_backend_t3code_clear_transition /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ '[' -n owned ']'
+++ fm_backend_t3code_escalation_marker /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++++ printf %s owned
++++ tr :/. ___
+++ printf %s/.t3code-escalated-%s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ rm -f /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state/.t3code-escalated-owned
++ fm_backend_wait_transition t3code server 1 /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ local backend=t3code
++ shift
++ fm_backend_has_push t3code
++ case "$1" in
++ return 0
++ fm_backend_source t3code
++ local name=t3code adapter rel sibling
++ fm_backend_validate t3code
++ local name=t3code
++ fm_backend_is_known t3code
++ fm_backend_list_contains 'tmux herdr zellij orca cmux t3code' t3code
++ local 'list=tmux herdr zellij orca cmux t3code' name=t3code
++ case "$name" in
++ case " $list " in
++ return 0
++ return 0
++ adapter=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ case "$name" in
++ set -- fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ for rel in "$@"
++ sibling=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ case "$name" in
++ '[' -z 1 ']'
++ case "$backend" in
++ fm_backend_t3code_wait_transition server 1 /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ local timeout=1 state=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state
++ shift 3
++ '[' 1 -gt 0 ']'
++ '[' 0 '!=' 1 ']'
++ fm_backend_t3code_events_capable
++ node -e 'process.exit(typeof WebSocket === "function" ? 0 : 1)'
++ fm_backend_t3code_runtime_check
+++ dirname /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ . /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/../fm-transition-lib.sh
+++ FM_TRANSITION_FIELD_SEP=$'\t'
++ reader=()
++ local reader word dir pid line record marker action rc=1 reader_rc=0
++ IFS=
++ read -r word
+++ fm_backend_t3code_event_reader_cmd
+++++ dirname /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++++ cd /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends
++++ pwd
+++ printf 'node\n%s/t3code-eventwait.cjs\n' /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends
++ reader+=("$word")
++ IFS=
++ read -r word
++ reader+=("$word")
++ IFS=
++ read -r word
+++ mktemp -d /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.XXXXXX
++ dir=/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.haAhm7
++ mkfifo /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.haAhm7/events
++ pid=62757
++ exec
+++ fm_backend_t3code_runtime_file
+++ printf %s/.t3/userdata/server-runtime.json /Users/bryceeppler
++ FM_T3CODE_RUNTIME_FILE=/Users/bryceeppler/.t3/userdata/server-runtime.json
+++ fm_backend_t3code_config_dir
+++ printf %s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config
++ FM_T3CODE_TOKEN_FILE=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config/t3code-token
++ node /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code-eventwait.cjs 1 owned
++ IFS=
++ read -r line
++ '[' subscribed '!=' subscribed ']'
++ '[' 1 -eq 1 ']'
++ IFS=
++ read -r line
++++ printf %s $'owned\tproject\trunning\ttrue\tcodex'
++++ cut -f1
++++ printf %s $'owned\tproject\trunning\ttrue\tcodex'
++++ cut -f2
++++ printf %s $'owned\tproject\trunning\ttrue\tcodex'
++++ cut -f3
++++ printf %s $'owned\tproject\trunning\ttrue\tcodex'
++++ cut -f4
++++ printf %s $'owned\tproject\trunning\ttrue\tcodex'
++++ cut -f5
+++ fm_backend_t3code_normalize_event owned project running true codex
+++ local state row
++++ fm_backend_t3code_state_row running
++++ case "$1" in
++++ printf 'busy alive'
+++ row='busy alive'
+++ case "$row" in
+++ state=working
+++ '[' alive = alive ']'
+++ '[' true = true ']'
+++ state=blocked
+++ fm_transition_record owned project '' blocked codex
+++ local pane_id ws from to agent
++++ fm_transition_clean_field owned
++++ printf %s owned
++++ LC_ALL=C
++++ tr '\t\r\n' '   '
+++ pane_id=owned
++++ fm_transition_clean_field project
++++ printf %s project
++++ LC_ALL=C
++++ tr '\t\r\n' '   '
+++ ws=project
++++ fm_transition_clean_field ''
++++ printf %s ''
++++ LC_ALL=C
++++ tr '\t\r\n' '   '
+++ from=
++++ fm_transition_clean_field blocked
++++ printf %s blocked
++++ LC_ALL=C
++++ tr '\t\r\n' '   '
+++ to=blocked
++++ fm_transition_clean_field codex
++++ printf %s codex
++++ LC_ALL=C
++++ tr '\t\r\n' '   '
+++ agent=codex
+++ printf '%s\t%s\t%s\t%s\t%s' owned project '' blocked codex
++ record=$'owned\tproject\t\tblocked\tcodex'
++++ fm_transition_pane_id $'owned\tproject\t\tblocked\tcodex'
++++ fm_transition_field $'owned\tproject\t\tblocked\tcodex' 1
++++ printf %s $'owned\tproject\t\tblocked\tcodex'
++++ cut $'-d\t' -f1
+++ fm_backend_t3code_escalation_marker /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++++ printf %s owned
++++ tr :/. ___
+++ printf %s/.t3code-escalated-%s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ marker=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state/.t3code-escalated-owned
++++ fm_transition_to_status $'owned\tproject\t\tblocked\tcodex'
++++ fm_transition_field $'owned\tproject\t\tblocked\tcodex' 4
++++ printf %s $'owned\tproject\t\tblocked\tcodex'
++++ cut $'-d\t' -f4
+++ fm_transition_policy blocked
+++ case "$1" in
+++ printf actionable
++ action=actionable
++ case "$action" in
++ '[' '!' -e /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state/.t3code-escalated-owned ']'
++ printf %s $'owned\tproject\t\tblocked\tcodex'
++ rc=0
++ '[' 0 -eq 1 ']'
++ '[' 0 -ne 1 ']'
++ kill 62757
++ wait 62757
++ reader_rc=2
++ exec
++ rm -rf /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.haAhm7
++ '[' 0 -ne 0 ']'
++ return 0
++ for mode in drop denied malformed unacknowledged
++ printf '%s\n' drop
++ rc=0
++ fm_backend_wait_transition t3code server 0.2 /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ local backend=t3code
++ shift
++ fm_backend_has_push t3code
++ case "$1" in
++ return 0
++ fm_backend_source t3code
++ local name=t3code adapter rel sibling
++ fm_backend_validate t3code
++ local name=t3code
++ fm_backend_is_known t3code
++ fm_backend_list_contains 'tmux herdr zellij orca cmux t3code' t3code
++ local 'list=tmux herdr zellij orca cmux t3code' name=t3code
++ case "$name" in
++ case " $list " in
++ return 0
++ return 0
++ adapter=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ case "$name" in
++ set -- fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ for rel in "$@"
++ sibling=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ case "$name" in
++ '[' -z 1 ']'
++ case "$backend" in
++ fm_backend_t3code_wait_transition server 0.2 /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ local timeout=0.2 state=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state
++ shift 3
++ '[' 1 -gt 0 ']'
++ '[' 0 '!=' 1 ']'
++ fm_backend_t3code_events_capable
++ node -e 'process.exit(typeof WebSocket === "function" ? 0 : 1)'
++ fm_backend_t3code_runtime_check
+++ dirname /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ . /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/../fm-transition-lib.sh
+++ FM_TRANSITION_FIELD_SEP=$'\t'
++ reader=()
++ local reader word dir pid line record marker action rc=1 reader_rc=0
++ IFS=
++ read -r word
+++ fm_backend_t3code_event_reader_cmd
+++++ dirname /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++++ cd /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends
++++ pwd
+++ printf 'node\n%s/t3code-eventwait.cjs\n' /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends
++ reader+=("$word")
++ IFS=
++ read -r word
++ reader+=("$word")
++ IFS=
++ read -r word
+++ mktemp -d /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.XXXXXX
++ dir=/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.mAiR3Q
++ mkfifo /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.mAiR3Q/events
++ pid=63089
++ exec
+++ fm_backend_t3code_runtime_file
+++ printf %s/.t3/userdata/server-runtime.json /Users/bryceeppler
++ FM_T3CODE_RUNTIME_FILE=/Users/bryceeppler/.t3/userdata/server-runtime.json
+++ fm_backend_t3code_config_dir
+++ printf %s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config
++ FM_T3CODE_TOKEN_FILE=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config/t3code-token
++ node /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code-eventwait.cjs 0.2 owned
++ IFS=
++ read -r line
++ '[' subscribed '!=' subscribed ']'
++ '[' 1 -eq 1 ']'
++ IFS=
++ read -r line
++++ printf %s $'owned\tproject\trunning\tfalse\tcodex'
++++ cut -f1
++++ printf %s $'owned\tproject\trunning\tfalse\tcodex'
++++ cut -f2
++++ printf %s $'owned\tproject\trunning\tfalse\tcodex'
++++ cut -f3
++++ printf %s $'owned\tproject\trunning\tfalse\tcodex'
++++ cut -f4
++++ printf %s $'owned\tproject\trunning\tfalse\tcodex'
++++ cut -f5
+++ fm_backend_t3code_normalize_event owned project running false codex
+++ local state row
++++ fm_backend_t3code_state_row running
++++ case "$1" in
++++ printf 'busy alive'
+++ row='busy alive'
+++ case "$row" in
+++ state=working
+++ '[' alive = alive ']'
+++ '[' false = true ']'
+++ fm_transition_record owned project '' working codex
+++ local pane_id ws from to agent
++++ fm_transition_clean_field owned
++++ printf %s owned
++++ LC_ALL=C
++++ tr '\t\r\n' '   '
+++ pane_id=owned
++++ fm_transition_clean_field project
++++ printf %s project
++++ LC_ALL=C
++++ tr '\t\r\n' '   '
+++ ws=project
++++ fm_transition_clean_field ''
++++ printf %s ''
++++ LC_ALL=C
++++ tr '\t\r\n' '   '
+++ from=
++++ fm_transition_clean_field working
++++ printf %s working
++++ LC_ALL=C
++++ tr '\t\r\n' '   '
+++ to=working
++++ fm_transition_clean_field codex
++++ printf %s codex
++++ LC_ALL=C
++++ tr '\t\r\n' '   '
+++ agent=codex
+++ printf '%s\t%s\t%s\t%s\t%s' owned project '' working codex
++ record=$'owned\tproject\t\tworking\tcodex'
++++ fm_transition_pane_id $'owned\tproject\t\tworking\tcodex'
++++ fm_transition_field $'owned\tproject\t\tworking\tcodex' 1
++++ printf %s $'owned\tproject\t\tworking\tcodex'
++++ cut $'-d\t' -f1
+++ fm_backend_t3code_escalation_marker /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++++ printf %s owned
++++ tr :/. ___
+++ printf %s/.t3code-escalated-%s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ marker=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state/.t3code-escalated-owned
++++ fm_transition_to_status $'owned\tproject\t\tworking\tcodex'
++++ fm_transition_field $'owned\tproject\t\tworking\tcodex' 4
++++ cut $'-d\t' -f4
++++ printf %s $'owned\tproject\t\tworking\tcodex'
+++ fm_transition_policy working
+++ case "$1" in
+++ printf absorb
++ action=absorb
++ case "$action" in
++ rm -f /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state/.t3code-escalated-owned
++ '[' 1 -eq 1 ']'
++ IFS=
++ read -r line
++ '[' 1 -ne 1 ']'
++ wait 63089
++ reader_rc=2
++ exec
++ rm -rf /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.mAiR3Q
++ '[' 1 -ne 0 ']'
++ '[' 1 -ne 2 ']'
++ '[' 2 -eq 0 ']'
++ return 2
++ rc=2
++ '[' 2 -eq 2 ']'
++ for mode in drop denied malformed unacknowledged
++ printf '%s\n' denied
++ rc=0
++ fm_backend_wait_transition t3code server 0.2 /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ local backend=t3code
++ shift
++ fm_backend_has_push t3code
++ case "$1" in
++ return 0
++ fm_backend_source t3code
++ local name=t3code adapter rel sibling
++ fm_backend_validate t3code
++ local name=t3code
++ fm_backend_is_known t3code
++ fm_backend_list_contains 'tmux herdr zellij orca cmux t3code' t3code
++ local 'list=tmux herdr zellij orca cmux t3code' name=t3code
++ case "$name" in
++ case " $list " in
++ return 0
++ return 0
++ adapter=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ case "$name" in
++ set -- fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ for rel in "$@"
++ sibling=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ case "$name" in
++ '[' -z 1 ']'
++ case "$backend" in
++ fm_backend_t3code_wait_transition server 0.2 /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ local timeout=0.2 state=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state
++ shift 3
++ '[' 1 -gt 0 ']'
++ '[' 0 '!=' 1 ']'
++ fm_backend_t3code_events_capable
++ node -e 'process.exit(typeof WebSocket === "function" ? 0 : 1)'
++ fm_backend_t3code_runtime_check
+++ dirname /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ . /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/../fm-transition-lib.sh
+++ FM_TRANSITION_FIELD_SEP=$'\t'
++ reader=()
++ local reader word dir pid line record marker action rc=1 reader_rc=0
++ IFS=
++ read -r word
+++ fm_backend_t3code_event_reader_cmd
+++++ dirname /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++++ cd /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends
++++ pwd
+++ printf 'node\n%s/t3code-eventwait.cjs\n' /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends
++ reader+=("$word")
++ IFS=
++ read -r word
++ reader+=("$word")
++ IFS=
++ read -r word
+++ mktemp -d /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.XXXXXX
++ dir=/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.qeMuu3
++ mkfifo /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.qeMuu3/events
++ pid=63282
++ exec
+++ fm_backend_t3code_runtime_file
+++ printf %s/.t3/userdata/server-runtime.json /Users/bryceeppler
++ FM_T3CODE_RUNTIME_FILE=/Users/bryceeppler/.t3/userdata/server-runtime.json
+++ fm_backend_t3code_config_dir
+++ printf %s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config
++ FM_T3CODE_TOKEN_FILE=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config/t3code-token
++ node /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code-eventwait.cjs 0.2 owned
++ IFS=
++ read -r line
++ rc=2
++ '[' 2 -eq 1 ']'
++ '[' 2 -ne 1 ']'
++ kill 63282
++ true
++ wait 63282
++ reader_rc=2
++ exec
++ rm -rf /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.qeMuu3
++ '[' 2 -ne 0 ']'
++ '[' 2 -ne 2 ']'
++ return 2
++ rc=2
++ '[' 2 -eq 2 ']'
++ for mode in drop denied malformed unacknowledged
++ printf '%s\n' malformed
++ rc=0
++ fm_backend_wait_transition t3code server 0.2 /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ local backend=t3code
++ shift
++ fm_backend_has_push t3code
++ case "$1" in
++ return 0
++ fm_backend_source t3code
++ local name=t3code adapter rel sibling
++ fm_backend_validate t3code
++ local name=t3code
++ fm_backend_is_known t3code
++ fm_backend_list_contains 'tmux herdr zellij orca cmux t3code' t3code
++ local 'list=tmux herdr zellij orca cmux t3code' name=t3code
++ case "$name" in
++ case " $list " in
++ return 0
++ return 0
++ adapter=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ case "$name" in
++ set -- fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ for rel in "$@"
++ sibling=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ case "$name" in
++ '[' -z 1 ']'
++ case "$backend" in
++ fm_backend_t3code_wait_transition server 0.2 /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ local timeout=0.2 state=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state
++ shift 3
++ '[' 1 -gt 0 ']'
++ '[' 0 '!=' 1 ']'
++ fm_backend_t3code_events_capable
++ node -e 'process.exit(typeof WebSocket === "function" ? 0 : 1)'
++ fm_backend_t3code_runtime_check
+++ dirname /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ . /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/../fm-transition-lib.sh
+++ FM_TRANSITION_FIELD_SEP=$'\t'
++ reader=()
++ local reader word dir pid line record marker action rc=1 reader_rc=0
++ IFS=
++ read -r word
+++ fm_backend_t3code_event_reader_cmd
+++++ dirname /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++++ cd /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends
++++ pwd
+++ printf 'node\n%s/t3code-eventwait.cjs\n' /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends
++ reader+=("$word")
++ IFS=
++ read -r word
++ reader+=("$word")
++ IFS=
++ read -r word
+++ mktemp -d /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.XXXXXX
++ dir=/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.Mvxqsw
++ mkfifo /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.Mvxqsw/events
++ pid=63614
++ exec
+++ fm_backend_t3code_runtime_file
+++ printf %s/.t3/userdata/server-runtime.json /Users/bryceeppler
++ FM_T3CODE_RUNTIME_FILE=/Users/bryceeppler/.t3/userdata/server-runtime.json
+++ fm_backend_t3code_config_dir
+++ printf %s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config
++ FM_T3CODE_TOKEN_FILE=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config/t3code-token
++ node /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code-eventwait.cjs 0.2 owned
++ IFS=
++ read -r line
++ rc=2
++ '[' 2 -eq 1 ']'
++ '[' 2 -ne 1 ']'
++ kill 63614
++ true
++ wait 63614
++ reader_rc=2
++ exec
++ rm -rf /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.Mvxqsw
++ '[' 2 -ne 0 ']'
++ '[' 2 -ne 2 ']'
++ return 2
++ rc=2
++ '[' 2 -eq 2 ']'
++ for mode in drop denied malformed unacknowledged
++ printf '%s\n' unacknowledged
++ rc=0
++ fm_backend_wait_transition t3code server 0.2 /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ local backend=t3code
++ shift
++ fm_backend_has_push t3code
++ case "$1" in
++ return 0
++ fm_backend_source t3code
++ local name=t3code adapter rel sibling
++ fm_backend_validate t3code
++ local name=t3code
++ fm_backend_is_known t3code
++ fm_backend_list_contains 'tmux herdr zellij orca cmux t3code' t3code
++ local 'list=tmux herdr zellij orca cmux t3code' name=t3code
++ case "$name" in
++ case " $list " in
++ return 0
++ return 0
++ adapter=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ case "$name" in
++ set -- fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh ']'
++ for rel in "$@"
++ sibling=/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ fm_backend_source_readable /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh
++ '[' -f /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ '[' -r /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/fm-transition-lib.sh ']'
++ case "$name" in
++ '[' -z 1 ']'
++ case "$backend" in
++ fm_backend_t3code_wait_transition server 0.2 /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state owned
++ local timeout=0.2 state=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/state
++ shift 3
++ '[' 1 -gt 0 ']'
++ '[' 0 '!=' 1 ']'
++ fm_backend_t3code_events_capable
++ node -e 'process.exit(typeof WebSocket === "function" ? 0 : 1)'
++ fm_backend_t3code_runtime_check
+++ dirname /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++ . /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/../fm-transition-lib.sh
+++ FM_TRANSITION_FIELD_SEP=$'\t'
++ reader=()
++ local reader word dir pid line record marker action rc=1 reader_rc=0
++ IFS=
++ read -r word
+++ fm_backend_t3code_event_reader_cmd
+++++ dirname /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code.sh
++++ cd /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends
++++ pwd
+++ printf 'node\n%s/t3code-eventwait.cjs\n' /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends
++ reader+=("$word")
++ IFS=
++ read -r word
++ reader+=("$word")
++ IFS=
++ read -r word
+++ mktemp -d /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.XXXXXX
++ dir=/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.tXPool
++ mkfifo /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.tXPool/events
++ pid=63720
++ exec
+++ fm_backend_t3code_runtime_file
+++ printf %s/.t3/userdata/server-runtime.json /Users/bryceeppler
++ FM_T3CODE_RUNTIME_FILE=/Users/bryceeppler/.t3/userdata/server-runtime.json
+++ fm_backend_t3code_config_dir
+++ printf %s /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config
++ FM_T3CODE_TOKEN_FILE=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config/t3code-token
++ node /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code-eventwait.cjs 0.2 owned
++ IFS=
++ read -r line
++ rc=2
++ '[' 2 -eq 1 ']'
++ '[' 2 -ne 1 ']'
++ kill 63720
++ true
++ wait 63720
++ reader_rc=2
++ exec
++ rm -rf /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//fm-t3code-eventwait.tXPool
++ '[' 2 -ne 0 ']'
++ '[' 2 -ne 2 ']'
++ return 2
++ rc=2
++ '[' 2 -eq 2 ']'
++ pass 'T3 WebSocket subscription, thread filtering, normalization, reconnect, dedupe, and failure fallback'
++ printf 'ok - %s\n' 'T3 WebSocket subscription, thread filtering, normalization, reconnect, dedupe, and failure fallback'
+ok - T3 WebSocket subscription, thread filtering, normalization, reconnect, dedupe, and failure fallback
++ printf 'background\n'
++ FM_T3CODE_RUNTIME_FILE=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/missing-runtime
++ FM_T3CODE_TOKEN_FILE=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config/t3code-token
++ node /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code-eventwait.cjs 0.2 owned
++ assert_grep $'owned\tproject\trunning\tfalse\tcodex' /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/background-events 'background work must be reported as running despite a ready session'
++ grep -F -- $'owned\tproject\trunning\tfalse\tcodex' /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/background-events
++ for mode in monitoring:ready stopped-background:stopped
++ printf '%s\n' monitoring
++ FM_T3CODE_RUNTIME_FILE=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/missing-runtime
++ FM_T3CODE_TOKEN_FILE=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config/t3code-token
++ node /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code-eventwait.cjs 0.2 owned
++ assert_grep $'owned\tproject\tready\tfalse\tcodex' /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/background-events 'monitoring must keep the session'\''s own status'
++ grep -F -- $'owned\tproject\tready\tfalse\tcodex' /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/background-events
++ for mode in monitoring:ready stopped-background:stopped
++ printf '%s\n' stopped-background
++ FM_T3CODE_RUNTIME_FILE=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/missing-runtime
++ FM_T3CODE_TOKEN_FILE=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE/config/t3code-token
++ node /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/bin/backends/t3code-eventwait.cjs 0.2 owned
++ cleanup
++ kill 60163
++ wait 60163
++ true
++ fm_test_cleanup
++ local d
++ fm_test_reap_watchers
++ local state lock_home $'seen=\n'
++ '[' -f /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//.fm-test-watcher.59922.GtsXs2 ']'
++ IFS=
++ read -r state
++ rm -f /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//.fm-test-watcher.59922.GtsXs2
++ fm_test_reap_procevent_homes
++ local home claim_root $'seen=\n'
++ '[' -f /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//.fm-test-procevent.59922.ILrzze ']'
++ IFS=$'\t'
++ read -r home claim_root
++ rm -f /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//.fm-test-procevent.59922.ILrzze
++ for d in "${FM_TEST_CLEANUP_DIRS[@]:-}"
++ '[' -n '' ']'
++ '[' -f /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//.fm-test-cleanup.59922.zSBSUl ']'
++ IFS=
++ read -r d
++ '[' -n /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE ']'
++ fm_test_remove_tree /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE
++ local dir=/private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE
++ '[' -d /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE ']'
++ '[' '!' -L /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE ']'
++ find /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE -type d -exec chmod u+rwx '{}' +
++ rm -rf /private/var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T/fm-t3-events.GOEtWE
++ IFS=
++ read -r d
++ rm -f /var/folders/8h/4yfy85r12kx3925_ypj5bn5h0000gn/T//.fm-test-cleanup.59922.zSBSUl

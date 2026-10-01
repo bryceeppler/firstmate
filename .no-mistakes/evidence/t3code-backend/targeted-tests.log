@@ -1,0 +1,54 @@
+FM_TEST_BEGIN 2026-10-01T21:19:15Z tests/fm-backend-t3code.test.sh family=backend-dispatch expected_gate_skip=none
+ok - T3 stale lookup honors paused and captain-held declarations
+ok - T3 stale watcher: harness=codex session=running background=none -> absorb
+ok - T3 stale watcher: harness=claude session=running background=none -> absorb
+ok - T3 stale watcher: harness=codex session=starting background=none -> surface
+ok - T3 stale watcher: harness=codex session=ready background=none -> surface
+ok - T3 stale watcher: harness=codex session=stopped background=none -> dead
+ok - T3 stale watcher: harness=codex session=error background=none -> dead
+ok - T3 stale watcher: harness=codex session=ready background=working -> absorb
+ok - T3 stale watcher: harness=codex session=ready background=monitoring -> surface
+ok - T3 stale watcher: harness=codex session=stopped background=working -> dead
+ok - T3 stale watcher: harness=codex session=error background=working -> dead
+ok - fm_backend_t3code_runtime_check: a missing token names the mint command
+ok - fm_backend_t3code_runtime_check: a 401 names the mint command
+ok - fm_backend_t3code_runtime_check: no origin names the runtime file and the override
+ok - fm_backend_t3code_runtime_check: stable floor, V2, capability, and authorization gates
+ok - fm_backend_t3code_project_ensure: matches by realpath, otherwise creates with the verified payload
+ok - fm_backend_t3code_model_selection: effort option ids per harness, default handling, instances file
+ok - fm_backend_t3code_thread_create/turn_start: verified command payloads
+error: backend=t3code cannot reach the T3 server at http://127.0.0.1:59664: fetch failed; start T3 Code and retry
+ok - thread.create transport retry reuses one commandId and pre-minted thread id
+ok - V2 and dispatch 404 refuse control and teardown without false success
+ok - fm_backend_t3code_thread_for_home: zero, one, ambiguous, and unreachable
+ok - T3 requires explicit selection and does not query the server during runtime detection
+ok - fm_backend_t3code_capture: renders the transcript tail and the session line
+ok - fm_backend_t3code_send_key: Escape and C-c interrupt, Enter no-ops, others refuse
+ok - fm_backend_t3code_send_text_submit: empty on accept, send-failed on rejection
+ok - t3code status table: every session status, background work, archived, 404, and unreachable rows
+ok - fm_backend_t3code_kill: stop then archive, idempotent on archived and 404, loud on failure
+ok - fm-backend dispatcher: routes every t3code primitive, validates and resolves t3_thread_id records
+ok - T3 harness admission refuses every non-T3 adapter and launch-time typing refuses without a thread read
+ok - fm_busy_classify: t3code native busy and idle are both trusted without a record
+ok - fm-control-lib: t3code key set, state-verified, native-exit, and no-replacement membership
+ok - fm-control.sh exit backend=t3code: one thread.session.stop, proven by the session reading stopped, idempotent
+ok - fm-control.sh relaunch backend=t3code: refused before anything is stopped, by the control plane and by the launch owner
+ok - fm-spawn.sh --backend t3code: leases the slot, creates the thread on it, records metadata, starts the launch turn
+ok - codex-cli 0.159.3: project config retained; shell FM_TASK_ID=t3codextrk2
+ok - fm-spawn.sh backend=t3code: compatible tracked Codex config launches, stays out of commits, and survives cleanup
+ok - tracked Codex overlay: edited files survive refusal, interrupted restoration recovers, quoted and dotted policy keys refuse
+ok - fm-spawn.sh --backend t3code codex: refuses to overwrite a project's tracked .codex/config.toml before any mutation
+ok - fm-spawn.sh --backend t3code claude: refuses to overwrite a project's tracked CLAUDE.local.md before any mutation
+ok - Claude channel refuses a symlink in the leased worktree without following it
+ok - untracked Codex config is preserved unless Firstmate's marker owns it
+ok - fm-spawn.sh --backend t3code codex: writes .codex/config.toml with GOTMPDIR, FM_TASK_ID, and TRACEPARENT
+not ok - fm-spawn.sh --backend t3code --secondmate should succeed against the fake T3 server
+error: secondmate home cannot be inside the firstmate repo: /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/.test-t3-tmp/fm-backend-t3code-tests.kQvfSn/spawn-secondmate/sm-home: expected exit 0, got 1
+FM_TEST_END 2026-10-01T21:35:36Z tests/fm-backend-t3code.test.sh exit=1 duration_ms=979867 gate_skip=false
+FM_TEST_BEGIN 2026-10-01T21:35:37Z tests/fm-backend-t3code-events.test.sh family=backend-dispatch expected_gate_skip=none
+ok - T3 WebSocket subscription, thread filtering, normalization, reconnect, dedupe, and failure fallback
+FM_TEST_END 2026-10-01T21:35:45Z tests/fm-backend-t3code-events.test.sh exit=2 duration_ms=7894 gate_skip=false
+FM_TEST_SUMMARY total=2 failed=2 skipped_gate=0 duration_ms=991226
+FM_TEST_SUMMARY_FAMILY family=backend-dispatch count=2 duration_ms=987761 failed=2
+FM_TEST_SLOWEST rank=1 script=tests/fm-backend-t3code.test.sh duration_ms=979867
+FM_TEST_SLOWEST rank=2 script=tests/fm-backend-t3code-events.test.sh duration_ms=7894

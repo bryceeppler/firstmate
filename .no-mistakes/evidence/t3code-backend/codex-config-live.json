@@ -1,0 +1,27 @@
+{
+  "consumer": "codex-cli 0.159.3",
+  "config/read": {
+    "model": "gpt-5.6-sol",
+    "shell_environment_policy": {
+      "inherit": null,
+      "ignore_default_excludes": null,
+      "exclude": null,
+      "set": {
+        "FM_TASK_ID": "t3-live-config-proof",
+        "COMPACT_ADVISER_DISABLE": "1"
+      },
+      "include_only": null,
+      "filters": null,
+      "experimental_use_profile": null
+    }
+  },
+  "command/exec": {
+    "exitCode": 0,
+    "stdout": "t3-live-config-proof\n1\n",
+    "stderr": ""
+  },
+  "cleanup": {
+    "restored_config": "model = \"gpt-5.6-sol\"\n",
+    "git_index_flag": "H .codex/config.toml"
+  }
+}

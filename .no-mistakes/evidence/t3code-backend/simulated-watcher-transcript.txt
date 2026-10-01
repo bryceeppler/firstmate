@@ -1,0 +1,12 @@
+Real fm-watch.sh with simulated T3 HTTP replies. These are not live-server results.
+
+Ready session with working background work: persisted stale timer, initially 1, is now:
+1790890157
+Ready session with monitoring background work: emitted watcher diagnostic:
+stale: 6a0e1f2b-3c4d-4a5b-8c6d-0123456789ab (idle 1790890284s, possible wedge, escalation 4, demand-deep-inspection: same pane has wedge-escalated 4 times in a row - do not re-absorb on the run-step/pane state alone)
+
+watch-stopped-codex-working: emitted watcher diagnostic:
+stale: 6a0e1f2b-3c4d-4a5b-8c6d-0123456789ab (idle 1790890330s, agent dead - the endpoint is still there with no agent running in it, so this is not a wedge; reported once and not re-escalated while it stays that way - reconcile this record, and check for unlanded work before any cleanup)
+
+watch-error-codex-working: emitted watcher diagnostic:
+stale: 6a0e1f2b-3c4d-4a5b-8c6d-0123456789ab (idle 1790890337s, agent dead - the endpoint is still there with no agent running in it, so this is not a wedge; reported once and not re-escalated while it stays that way - reconcile this record, and check for unlanded work before any cleanup)

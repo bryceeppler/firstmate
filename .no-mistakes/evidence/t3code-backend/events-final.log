@@ -1,0 +1,8 @@
+FM_TEST_BEGIN 2026-10-01T21:41:13Z tests/fm-backend-t3code-events.test.sh family=backend-dispatch expected_gate_skip=none
+ok - T3 WebSocket subscription, thread filtering, normalization, reconnect, dedupe, and failure fallback
+ok - T3 stream treats working background liveness on a live session as active work, and only that
+ok - T3 watcher dispatch, durable wake, endpoint identity, and unchanged polling fallback
+FM_TEST_END 2026-10-01T21:41:27Z tests/fm-backend-t3code-events.test.sh exit=0 duration_ms=14889 gate_skip=false
+FM_TEST_SUMMARY total=1 failed=0 skipped_gate=0 duration_ms=14977
+FM_TEST_SUMMARY_FAMILY family=backend-dispatch count=1 duration_ms=14889 failed=0
+FM_TEST_SLOWEST rank=1 script=tests/fm-backend-t3code-events.test.sh duration_ms=14889
