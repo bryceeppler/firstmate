@@ -1,0 +1,7 @@
+Attempting explicit T3 scout launch without an authorized lab bearer
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3XHNDH0EK9F0JEZ5EGDBS6N/.fm-t3-lab.HPd7Ka
+error: backend=t3code has no bearer token at /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3XHNDH0EK9F0JEZ5EGDBS6N/.fm-t3-lab.HPd7Ka/config/t3code-token; mint one with: npx t3@0.0.45-nightly.20261001.2539 auth session issue --json --ttl 30d --label firstmate, then write its token field to /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3XHNDH0EK9F0JEZ5EGDBS6N/.fm-t3-lab.HPd7Ka/config/t3code-token (mode 0600)
+fm-spawn exit status: 1
+Task records after refusal:
+Project files after refusal:
+Lab teardown: complete on command exit

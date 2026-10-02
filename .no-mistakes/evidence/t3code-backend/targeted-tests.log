@@ -1,4 +1,7 @@
-FM_TEST_BEGIN 2026-10-01T21:19:15Z tests/fm-backend-t3code.test.sh family=backend-dispatch expected_gate_skip=none
+FM_TEST_BEGIN 2026-10-02T05:56:41Z tests/fm-backend-t3code.test.sh family=backend-dispatch expected_gate_skip=none
+ok - away housekeeping preserves unknown stale rechecks and reports possible wedges until work resumes
+ok - T3 stale watcher: harness=codex session=error background=none -> dead
+ok - t3code probe: shell failures preserve liveness, report unknown busy state, and defer away-mode injection
 ok - T3 stale lookup honors paused and captain-held declarations
 ok - T3 stale watcher: harness=codex session=running background=none -> absorb
 ok - T3 stale watcher: harness=claude session=running background=none -> absorb
@@ -17,7 +20,7 @@ ok - fm_backend_t3code_runtime_check: stable floor, V2, capability, and authoriz
 ok - fm_backend_t3code_project_ensure: matches by realpath, otherwise creates with the verified payload
 ok - fm_backend_t3code_model_selection: effort option ids per harness, default handling, instances file
 ok - fm_backend_t3code_thread_create/turn_start: verified command payloads
-error: backend=t3code cannot reach the T3 server at http://127.0.0.1:59664: fetch failed; start T3 Code and retry
+error: backend=t3code cannot reach the T3 server at http://127.0.0.1:63263: fetch failed; start T3 Code and retry
 ok - thread.create transport retry reuses one commandId and pre-minted thread id
 ok - V2 and dispatch 404 refuse control and teardown without false success
 ok - fm_backend_t3code_thread_for_home: zero, one, ambiguous, and unreachable
@@ -29,7 +32,7 @@ ok - t3code status table: every session status, background work, archived, 404, 
 ok - fm_backend_t3code_kill: stop then archive, idempotent on archived and 404, loud on failure
 ok - fm-backend dispatcher: routes every t3code primitive, validates and resolves t3_thread_id records
 ok - T3 harness admission refuses every non-T3 adapter and launch-time typing refuses without a thread read
-ok - fm_busy_classify: t3code native busy and idle are both trusted without a record
+ok - fm_busy_classify: t3code native busy, idle, and unknown are trusted without a record
 ok - fm-control-lib: t3code key set, state-verified, native-exit, and no-replacement membership
 ok - fm-control.sh exit backend=t3code: one thread.session.stop, proven by the session reading stopped, idempotent
 ok - fm-control.sh relaunch backend=t3code: refused before anything is stopped, by the control plane and by the launch owner
@@ -42,13 +45,26 @@ ok - fm-spawn.sh --backend t3code claude: refuses to overwrite a project's track
 ok - Claude channel refuses a symlink in the leased worktree without following it
 ok - untracked Codex config is preserved unless Firstmate's marker owns it
 ok - fm-spawn.sh --backend t3code codex: writes .codex/config.toml with GOTMPDIR, FM_TASK_ID, and TRACEPARENT
-not ok - fm-spawn.sh --backend t3code --secondmate should succeed against the fake T3 server
-error: secondmate home cannot be inside the firstmate repo: /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3WGKVMKQSRM802TPE939PJA/.test-t3-tmp/fm-backend-t3code-tests.kQvfSn/spawn-secondmate/sm-home: expected exit 0, got 1
-FM_TEST_END 2026-10-01T21:35:36Z tests/fm-backend-t3code.test.sh exit=1 duration_ms=979867 gate_skip=false
-FM_TEST_BEGIN 2026-10-01T21:35:37Z tests/fm-backend-t3code-events.test.sh family=backend-dispatch expected_gate_skip=none
+ok - fm-spawn.sh --backend t3code --secondmate: project on the home, worktree-less thread, charter turn, launch prefix as settings env
+ok - fm-spawn.sh --backend t3code --secondmate codex: launch prefix as .codex/config.toml shell_environment_policy
+ok - fm-spawn.sh --backend t3code: refuses before mutation when the bearer is rejected
+ok - fm-teardown.sh backend=t3code: stops and archives the thread, then returns the slot
+ok - fm-teardown.sh backend=t3code secondmate: stops and archives before the home is removed, leaves the T3 project
+ok - fm-teardown.sh backend=t3code secondmate: stops and archives before the home is removed, leaves the T3 project
+ok - fm-teardown.sh backend=t3code: refuses to return a slot a live thread still points at
+ok - fm-spawn.sh --backend t3code: refuses config/claude-permission-mode it cannot honor before any mutation
+ok - fm-spawn.sh --backend t3code: refuses config/launch-env-allowlist it cannot honor before any mutation
+ok - fm-spawn.sh --backend t3code: an abort archives the thread, then returns the lease
+ok - fm-spawn.sh --backend t3code: an abort that cannot archive the thread keeps the lease
+ok - two lost creation responses retain the lease even when an immediate thread probe is 404
+ok - lost auto-settle responses leave a known thread, so the abort archives it and returns the lease
+FM_TEST_END 2026-10-02T05:58:32Z tests/fm-backend-t3code.test.sh exit=0 duration_ms=111577 gate_skip=false
+FM_TEST_BEGIN 2026-10-02T05:58:32Z tests/fm-backend-t3code-events.test.sh family=backend-dispatch expected_gate_skip=none
 ok - T3 WebSocket subscription, thread filtering, normalization, reconnect, dedupe, and failure fallback
-FM_TEST_END 2026-10-01T21:35:45Z tests/fm-backend-t3code-events.test.sh exit=2 duration_ms=7894 gate_skip=false
-FM_TEST_SUMMARY total=2 failed=2 skipped_gate=0 duration_ms=991226
-FM_TEST_SUMMARY_FAMILY family=backend-dispatch count=2 duration_ms=987761 failed=2
-FM_TEST_SLOWEST rank=1 script=tests/fm-backend-t3code.test.sh duration_ms=979867
-FM_TEST_SLOWEST rank=2 script=tests/fm-backend-t3code-events.test.sh duration_ms=7894
+ok - T3 stream treats working background liveness on a live session as active work, and only that
+ok - T3 watcher dispatch, durable wake, endpoint identity, and unchanged polling fallback
+FM_TEST_END 2026-10-02T05:58:46Z tests/fm-backend-t3code-events.test.sh exit=0 duration_ms=13552 gate_skip=false
+FM_TEST_SUMMARY total=2 failed=0 skipped_gate=0 duration_ms=125243
+FM_TEST_SUMMARY_FAMILY family=backend-dispatch count=2 duration_ms=125129 failed=0
+FM_TEST_SLOWEST rank=1 script=tests/fm-backend-t3code.test.sh duration_ms=111577
+FM_TEST_SLOWEST rank=2 script=tests/fm-backend-t3code-events.test.sh duration_ms=13552
