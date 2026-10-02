@@ -1,0 +1,54 @@
+/Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3XHNDH0EK9F0JEZ5EGDBS6N/.fm-t3-test-lab.XC87O7
+Real T3 environment descriptor:
+{
+  "serverVersion": "0.0.45-nightly.20261001.2539",
+  "orchestrationProtocolVersion": 1,
+  "capabilities": {
+    "repositoryIdentity": true,
+    "connectionProbe": true,
+    "attachmentUploads": true,
+    "questionAttachments": true,
+    "fileAttachments": {
+      "maxUploadBytes": 52428800
+    },
+    "pullRequests": true,
+    "inlineMessageContext": true,
+    "requiredWorktreeBootstrap": true,
+    "threadSettlement": true,
+    "threadAutoSettlement": true,
+    "storageCleanup": true,
+    "projectWorktreeCleanup": true,
+    "threadRestartContinuation": true,
+    "projectSettingsOverrides": true,
+    "threadSnooze": true,
+    "environmentThemes": true,
+    "usageLimitSources": true,
+    "usagePriceOverrides": true,
+    "threadPinning": true,
+    "threadPinReorder": true,
+    "threadActiveReorder": true,
+    "threadAutoSettleOptOut": true,
+    "threadTitleRegeneration": true,
+    "threadPullRequestLinking": true,
+    "threadPullRequests": true,
+    "pullRequestStackActions": true,
+    "serverSelfUpdate": "desktop-managed",
+    "serverSelfUpdateProgress": true,
+    "serverUpdateThreadContinuation": true,
+    "agentActivityPublishing": true,
+    "projectCloneTracking": true,
+    "environmentIcon": true,
+    "desktopAppUpdate": true
+  }
+}
+
+Automatic backend selection with a running T3 server: tmux
+Explicit configured selection: t3code
+
+Admission without a lab bearer:
+error: backend=t3code has no bearer token at /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3XHNDH0EK9F0JEZ5EGDBS6N/.fm-t3-test-lab.XC87O7/config/t3code-token; mint one with: npx t3@0.0.45-nightly.20261001.2539 auth session issue --json --ttl 30d --label firstmate, then write its token field to /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3XHNDH0EK9F0JEZ5EGDBS6N/.fm-t3-test-lab.XC87O7/config/t3code-token (mode 0600)
+Admission refused; no lifecycle mutation attempted.
+
+Authenticated shell read without a lab bearer:
+error: backend=t3code has no bearer token at /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3XHNDH0EK9F0JEZ5EGDBS6N/.fm-t3-test-lab.XC87O7/config/t3code-token; mint one with: npx t3@0.0.45-nightly.20261001.2539 auth session issue --json --ttl 30d --label firstmate, then write its token field to /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3XHNDH0EK9F0JEZ5EGDBS6N/.fm-t3-test-lab.XC87O7/config/t3code-token (mode 0600)
+Read exit code: 2

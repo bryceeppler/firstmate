@@ -1,0 +1,4 @@
+{"codexVersion": "codex-cli 0.159.3"}
+{"method": "config/read", "result": {"model": "gpt-5.6-sol", "shell_environment_policy": {"inherit": null, "ignore_default_excludes": null, "exclude": null, "set": {"FM_TASK_ID": "live-t3-config-lab"}, "include_only": null, "filters": null, "experimental_use_profile": null}}}
+{"method": "command/exec", "result": {"exitCode": 0, "stdout": "live-t3-config-lab\n", "stderr": ""}}
+{"cleanup": {"originalConfigRestored": true, "gitStatus": "clean", "skipWorktree": false}}
