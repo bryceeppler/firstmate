@@ -1,0 +1,41 @@
+{
+  "checks": [
+    {
+      "name": "Read installed T3 server environment through the real adapter",
+      "exit": 0,
+      "stdout": "{\"environmentId\":\"859fd391-7d1b-4733-ad1d-59d5e12da15d\",\"label\":\"MacBook Pro\",\"platform\":{\"os\":\"darwin\",\"arch\":\"arm64\",\"machine\":\"laptop\"},\"serverVersion\":\"0.0.45-nightly.20261001.2539\",\"orchestrationProtocolVersion\":1,\"capabilities\":{\"repositoryIdentity\":true,\"connectionProbe\":true,\"attachmentUploads\":true,\"questionAttachments\":true,\"fileAttachments\":{\"maxUploadBytes\":52428800},\"pullRequests\":true,\"inlineMessageContext\":true,\"requiredWorktreeBootstrap\":true,\"threadSettlement\":true,\"threadAutoSettlement\":true,\"storageCleanup\":true,\"projectWorktreeCleanup\":true,\"threadRestartContinuation\":true,\"projectSettingsOverrides\":true,\"threadSnooze\":true,\"environmentThemes\":true,\"usageLimitSources\":true,\"usagePriceOverrides\":true,\"threadPinning\":true,\"threadPinReorder\":true,\"threadActiveReorder\":true,\"threadAutoSettleOptOut\":true,\"threadTitleRegeneration\":true,\"threadPullRequestLinking\":true,\"threadPullRequests\":true,\"pullRequestStackActions\":true,\"serverSelfUpdate\":\"desktop-managed\",\"serverSelfUpdateProgress\":true,\"serverUpdateThreadContinuation\":true,\"agentActivityPublishing\":true,\"projectCloneTracking\":true,\"environmentIcon\":true,\"desktopAppUpdate\":true}}",
+      "stderr": ""
+    },
+    {
+      "name": "Run release and capability admission against installed T3 server",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "error: backend=t3code has no bearer token at /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3ZKDNV137EY7SB23605R9KP/.fm-test-t3-lab-_dv00amr/config/t3code-token; mint one with: npx t3@0.0.45-nightly.20261001.2539 auth session issue --json --ttl 30d --label firstmate, then write its token field to /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3ZKDNV137EY7SB23605R9KP/.fm-test-t3-lab-_dv00amr/config/t3code-token (mode 0600)\n"
+    },
+    {
+      "name": "Refuse authenticated orchestration without a lab bearer",
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error: backend=t3code has no bearer token at /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3ZKDNV137EY7SB23605R9KP/.fm-test-t3-lab-_dv00amr/config/t3code-token; mint one with: npx t3@0.0.45-nightly.20261001.2539 auth session issue --json --ttl 30d --label firstmate, then write its token field to /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3ZKDNV137EY7SB23605R9KP/.fm-test-t3-lab-_dv00amr/config/t3code-token (mode 0600)\n"
+    },
+    {
+      "name": "Configured server alone does not select T3 for new workers",
+      "exit": 0,
+      "stdout": "tmux\n",
+      "stderr": ""
+    },
+    {
+      "name": "Explicit environment opt-in selects T3",
+      "exit": 0,
+      "stdout": "t3code\n",
+      "stderr": ""
+    },
+    {
+      "name": "Explicit home configuration selects T3",
+      "exit": 0,
+      "stdout": "t3code\n",
+      "stderr": ""
+    }
+  ],
+  "disposable_lab_removed": true
+}
