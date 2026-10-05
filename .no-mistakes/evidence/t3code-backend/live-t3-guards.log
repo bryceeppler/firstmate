@@ -1,8 +1,11 @@
-Running server descriptor: {"serverVersion":"0.0.45-nightly.20261001.2539","orchestrationProtocolVersion":1,"threadAutoSettleOptOut":true}
-Backend with T3 available but no explicit selection: tmux
-Explicit FM_BACKEND=t3code selection: t3code
-Runtime admission without a supplied lab bearer:
-error: backend=t3code has no bearer token at /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3XHNDH0EK9F0JEZ5EGDBS6N/.fm-t3-lab.0xv3rH/config/t3code-token; mint one with: npx t3@0.0.45-nightly.20261001.2539 auth session issue --json --ttl 30d --label firstmate, then write its token field to /Users/bryceeppler/.no-mistakes/worktrees/f9efdceed37b/01M3XHNDH0EK9F0JEZ5EGDBS6N/.fm-t3-lab.0xv3rH/config/t3code-token (mode 0600)
-Admission exit status: 1
-Persisted lab task metadata: 0
-Lab teardown: complete on command exit
+Real T3 server descriptor:
+{"environmentId":"7c9e2d14-c691-4fa1-b338-0e6c68170374","label":"odin","platform":{"os":"linux","arch":"x64","machine":"desktop"},"serverVersion":"0.0.45","orchestrationProtocolVersion":1,"capabilities":{"repositoryIdentity":true,"connectionProbe":true,"attachmentUploads":true,"questionAttachments":true,"fileAttachments":{"maxUploadBytes":52428800},"pullRequests":true,"inlineMessageContext":true,"requiredWorktreeBootstrap":true,"threadSettlement":true,"threadAutoSettlement":true,"storageCleanup":true,"projectWorktreeCleanup":true,"threadRestartContinuation":true,"projectSettingsOverrides":true,"threadSnooze":true,"environmentThemes":true,"usageLimitSources":true,"usagePriceOverrides":true,"threadPinning":true,"threadPinReorder":true,"threadActiveReorder":true,"threadAutoSettleOptOut":true,"threadTitleRegeneration":true,"threadPullRequestLinking":true,"threadPullRequests":true,"pullRequestStackActions":true,"serverSelfUpdate":"boot-service","serverSelfUpdateProgress":true,"serverUpdateThreadContinuation":true,"agentActivityPublishing":false,"projectCloneTracking":true,"environmentIcon":true}}
+Runtime check with missing bearer:
+error: backend=t3code has no bearer token at /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M44YNZJWQN8SZZ2JKQ36XWXX/fm-lab.OKvIj5/config/t3code-token; mint one with: npx t3@0.0.45 auth session issue --json --ttl 30d --label firstmate, then write its token field to /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M44YNZJWQN8SZZ2JKQ36XWXX/fm-lab.OKvIj5/config/t3code-token (mode 0600)
+exit=1
+Runtime check with rejected bearer:
+error: the T3 server rejected the bearer at /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M44YNZJWQN8SZZ2JKQ36XWXX/fm-lab.OKvIj5/config/t3code-token (401: invalid_credential); mint one with: npx t3@0.0.45 auth session issue --json --ttl 30d --label firstmate, then write its token field to /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M44YNZJWQN8SZZ2JKQ36XWXX/fm-lab.OKvIj5/config/t3code-token (mode 0600)
+exit=1
+Explicit selection:
+t3codeUnconfigured detection with server present:
+tmux

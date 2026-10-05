@@ -1,0 +1,1 @@
+stale: 6a0e1f2b-3c4d-4a5b-8c6d-0123456789ab (idle 1791168204s, possible wedge, escalation 4, demand-deep-inspection: same pane has wedge-escalated 4 times in a row - do not re-absorb on the run-step/pane state alone)

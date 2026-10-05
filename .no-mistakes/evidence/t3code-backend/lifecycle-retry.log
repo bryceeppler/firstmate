@@ -1,0 +1,19 @@
+FM_TEST_BEGIN 2026-10-05T02:46:27Z tests/fm-backend-t3code.test.sh family=backend-dispatch expected_gate_skip=none
+ok - fm-spawn.sh --backend t3code --secondmate: project on the home, worktree-less thread, charter turn, launch prefix as settings env
+ok - fm-spawn.sh --backend t3code --secondmate codex: launch prefix as .codex/config.toml shell_environment_policy
+ok - fm-spawn.sh --backend t3code: refuses before mutation when the bearer is rejected
+ok - fm-teardown.sh backend=t3code: stops and archives the thread, then returns the slot
+ok - fm-teardown.sh backend=t3code secondmate: stops and archives before the home is removed, leaves the T3 project
+ok - fm-teardown.sh backend=t3code secondmate: stops and archives before the home is removed, leaves the T3 project
+ok - fm-teardown.sh backend=t3code: refuses to return a slot a live thread still points at
+ok - fm-spawn.sh --backend t3code: refuses config/claude-permission-mode it cannot honor before any mutation
+ok - fm-spawn.sh --backend t3code: refuses config/launch-env-allowlist it cannot honor before any mutation
+ok - fm-spawn.sh --backend t3code: an abort archives the thread, then returns the lease
+ok - fm-spawn.sh --backend t3code: an abort that cannot archive the thread keeps the lease
+ok - two lost creation responses retain the lease even when an immediate thread probe is 404
+ok - fm-spawn.sh --backend t3code: an accepted launch turn whose response is lost keeps its Git hook directory
+ok - lost auto-settle responses leave a known thread, so the abort archives it and returns the lease
+FM_TEST_END 2026-10-05T02:47:06Z tests/fm-backend-t3code.test.sh exit=0 duration_ms=38598 gate_skip=false
+FM_TEST_SUMMARY total=1 failed=0 skipped_gate=0 duration_ms=38725
+FM_TEST_SUMMARY_FAMILY family=backend-dispatch count=1 duration_ms=38598 failed=0
+FM_TEST_SLOWEST rank=1 script=tests/fm-backend-t3code.test.sh duration_ms=38598

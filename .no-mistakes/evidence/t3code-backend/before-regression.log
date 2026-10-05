@@ -1,0 +1,3 @@
+not ok - a T3 session that is not running must still escalate (missing: 'demand-deep-inspection')
+--- output ---
+
