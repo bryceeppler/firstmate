@@ -1,0 +1,4 @@
+codex-cli 0.160.0
+{"method": "config/read", "model": "gpt-5.6-sol", "shell_environment_policy": {"inherit": null, "ignore_default_excludes": null, "exclude": null, "set": {"FM_TASK_INBOX": "/home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M46S4FDG4D1RH7V4H5TXMPWF/.local-test-tmp/codex-live-5y137hy2/inbox", "FM_TASK_ID": "lab-live-codex"}, "include_only": null, "filters": null, "experimental_use_profile": null}}
+{"method": "command/exec", "result": {"exitCode": 0, "stdout": "lab-live-codex\n/home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M46S4FDG4D1RH7V4H5TXMPWF/.local-test-tmp/codex-live-5y137hy2/inbox\n", "stderr": ""}}
+{"cleanup": "original tracked configuration restored", "tracked_config": "model = \"gpt-5.6-sol\"\n", "git_status": "", "git_index_flag": "H .codex/config.toml"}
