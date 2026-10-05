@@ -1,0 +1,27 @@
+Scenario: explicit backend selection while a real T3 server is running
+No configured backend: tmux
+config/backend=t3code: t3code
+Per-launch FM_BACKEND=herdr overrides t3code config: herdr
+error: backend=t3code runs only the claude and codex harnesses, not 'omp'
+RESULT: explicit selection and unsupported-harness refusal verified
+
+Scenario: live T3 capability discovery and missing-bearer refusal
+{"serverVersion":"0.0.45","orchestrationProtocolVersion":1,"threadAutoSettleOptOut":true}
+error: backend=t3code has no bearer token at /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M44SJBKDX9BE9JBE0FM395KH/.gate-test-tmp/fm-lab.oxRMkR/config/t3code-token; mint one with: npx t3@0.0.45 auth session issue --json --ttl 30d --label firstmate, then write its token field to /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M44SJBKDX9BE9JBE0FM395KH/.gate-test-tmp/fm-lab.oxRMkR/config/t3code-token (mode 0600)
+RESULT: missing credential refused against real server, with version-specific recovery instructions
+
+Scenario: protected tracked Codex environment overlay and cleanup
+{"model": "gpt-6-sol", "shell_environment_policy": {"set": {"FM_TASK_ID": "live-gate-worker", "FM_TASK_INBOX": "/home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M44SJBKDX9BE9JBE0FM395KH/.gate-test-tmp/fm-lab.oxRMkR/state/live-gate-worker.inbox", "COMPACT_ADVISER_DISABLE": "1"}}}
+codex-cli 0.160.0
+Native Codex config/read: {"model": "gpt-6-sol", "shell_environment_policy": {"inherit": null, "ignore_default_excludes": null, "exclude": null, "set": {"FM_TASK_INBOX": "/home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M44SJBKDX9BE9JBE0FM395KH/.gate-test-tmp/fm-lab.oxRMkR/state/live-gate-worker.inbox", "COMPACT_ADVISER_DISABLE": "1", "FM_TASK_ID": "live-gate-worker"}, "include_only": null, "filters": null, "experimental_use_profile": null}}
+Native Codex command/exec: {"exitCode": 0, "stdout": "live-gate-worker\n", "stderr": ""}
+Real git add -A preserved the committed project configuration
+RESULT: original bytes and Git flag restored, overlay journal removed
+
+Scenario: refuse taking over existing project shell policy
+error: /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M44SJBKDX9BE9JBE0FM395KH/.gate-test-tmp/fm-lab.oxRMkR/project/.codex/config.toml: already defines [shell_environment_policy]; refusing to replace the project's policy table
+RESULT: existing policy remains byte-identical and no journal created
+
+Herdr live prerequisite probe
+fm-herdr-lab: herdr is required
+HERDR UNTESTED: required executable absent; no session provisioned

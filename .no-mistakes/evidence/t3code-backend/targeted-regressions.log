@@ -1,0 +1,134 @@
+FM_TEST_BEGIN 2026-10-05T01:09:08Z tests/fm-backend-t3code.test.sh family=backend-dispatch expected_gate_skip=none
+fm-afk-launch: away-posture record archived at /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M44SJBKDX9BE9JBE0FM395KH/.gate-test-tmp/fm-backend-t3code-tests.abNA5D/restart-unknown-ready/home/state/afk-contracts/1791162549.afk-contract
+fm-afk-launch: away mode stopped; no daemon terminal was running, .afk cleared, and the posture record archived
+fm-afk-launch: away-posture record archived at /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M44SJBKDX9BE9JBE0FM395KH/.gate-test-tmp/fm-backend-t3code-tests.abNA5D/restart-unknown-error/home/state/afk-contracts/1791162554.afk-contract
+fm-afk-launch: away mode stopped; no daemon terminal was running, .afk cleared, and the posture record archived
+ok - native restart re-arms discarded T3 stale warnings exactly once and preserves delivered suppression
+ok - away housekeeping preserves unknown stale rechecks and reports possible wedges until work resumes
+ok - T3 stale watcher: harness=codex session=error background=none -> dead
+ok - t3code probe: shell failures preserve liveness, report unknown busy state, defer away-mode injection, and bound inbox deferral
+ok - T3 stale lookup honors paused and captain-held declarations
+ok - T3 stale watcher: harness=codex session=running background=none -> absorb
+ok - T3 stale watcher: harness=claude session=running background=none -> absorb
+ok - T3 stale watcher: harness=codex session=starting background=none -> surface
+ok - T3 stale watcher: harness=codex session=ready background=none -> surface
+ok - T3 stale watcher: harness=codex session=stopped background=none -> dead
+ok - T3 stale watcher: harness=codex session=error background=none -> dead
+ok - T3 stale watcher: harness=codex session=ready background=working -> absorb
+ok - T3 stale watcher: harness=codex session=ready background=monitoring -> surface
+ok - T3 stale watcher: harness=codex session=stopped background=working -> dead
+ok - T3 stale watcher: harness=codex session=error background=working -> dead
+ok - fm_backend_t3code_runtime_check: a missing token names the mint command
+ok - fm_backend_t3code_runtime_check: a 401 names the mint command
+ok - fm_backend_t3code_runtime_check: no origin names the runtime file and the override
+ok - fm_backend_t3code_runtime_check: stable floor, V2, capability, and authorization gates
+ok - fm_backend_t3code_project_ensure: matches by realpath, otherwise creates with the verified payload
+ok - fm_backend_t3code_model_selection: effort option ids per harness, default handling, instances file
+ok - fm_backend_t3code_thread_create/turn_start: verified command payloads
+error: backend=t3code cannot reach the T3 server at http://127.0.0.1:44009: fetch failed; start T3 Code and retry
+ok - thread.create transport retry reuses one commandId and pre-minted thread id
+ok - V2 and dispatch 404 refuse control and teardown without false success
+ok - fm_backend_t3code_thread_for_home: zero, one, ambiguous, and unreachable
+ok - T3 requires explicit selection and does not query the server during runtime detection
+ok - fm_backend_t3code_capture: renders the transcript tail and the session line
+ok - fm_backend_t3code_send_key: Escape and C-c interrupt, Enter no-ops, others refuse
+ok - fm_backend_t3code_send_text_submit: empty on accept, send-failed on rejection
+ok - t3code status table: every session status, background work, archived, 404, and unreachable rows
+ok - fm_backend_t3code_kill: stop then archive, idempotent on archived and 404, loud on failure
+ok - fm-backend dispatcher: routes every t3code primitive, validates and resolves t3_thread_id records
+ok - T3 harness admission refuses every non-T3 adapter and launch-time typing refuses without a thread read
+ok - fm_busy_classify: t3code native busy, idle, and unknown are trusted without a record
+ok - fm-control-lib: t3code key set, state-verified, native-exit, and no-replacement membership
+ok - fm-control.sh exit backend=t3code: one thread.session.stop, proven by the session reading stopped, idempotent
+ok - fm-control.sh relaunch backend=t3code: refused before anything is stopped, by the control plane and by the launch owner
+ok - fm-spawn.sh --backend t3code: leases the slot, creates the thread on it, records metadata, starts the launch turn
+ok - codex-cli 0.160.0: project config retained; shell FM_TASK_ID=t3codextrk2
+ok - fm-spawn.sh backend=t3code: compatible tracked Codex config launches, stays out of commits, and survives cleanup
+ok - tracked Codex overlay: edited files survive refusal, interrupted restoration recovers, quoted and dotted policy keys refuse
+ok - fm-spawn.sh --backend t3code codex: refuses to overwrite a project's tracked .codex/config.toml before any mutation
+ok - fm-spawn.sh --backend t3code claude: refuses to overwrite a project's tracked CLAUDE.local.md before any mutation
+ok - Claude channel refuses a symlink in the leased worktree without following it
+ok - untracked Codex config is preserved unless Firstmate's marker owns it
+ok - fm-spawn.sh --backend t3code codex: writes .codex/config.toml with GOTMPDIR, FM_TASK_ID, and TRACEPARENT
+not ok - fm-spawn.sh --backend t3code --secondmate should succeed against the fake T3 server
+error: secondmate home cannot be inside the firstmate repo: /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M44SJBKDX9BE9JBE0FM395KH/.gate-test-tmp/fm-backend-t3code-tests.abNA5D/spawn-secondmate/sm-home: expected exit 0, got 1
+FM_TEST_END 2026-10-05T01:11:10Z tests/fm-backend-t3code.test.sh exit=1 duration_ms=121986 gate_skip=false
+FM_TEST_BEGIN 2026-10-05T01:11:10Z tests/fm-backend-t3code-events.test.sh family=backend-dispatch expected_gate_skip=none
+ok - T3 WebSocket subscription, thread filtering, normalization, reconnect, dedupe, and failure fallback
+ok - T3 stream treats working background liveness on a live session as active work, and only that
+ok - T3 watcher dispatch, durable wake, endpoint identity, and unchanged polling fallback
+FM_TEST_END 2026-10-05T01:11:25Z tests/fm-backend-t3code-events.test.sh exit=0 duration_ms=14763 gate_skip=false
+FM_TEST_BEGIN 2026-10-05T01:11:25Z tests/fm-task-inbox.test.sh family=watcher-wake-lock expected_gate_skip=none
+ok - inbox: a steer is written durably and round-trips byte-exact with a self-describing doorbell
+ok - inbox: a hostile-name doorbell executes as a no-op in bare shells
+ok - inbox: terminal-control inbox names are rejected without typing
+ok - inbox: the ring skips dead or missing endpoints and still rings live or unclassifiable endpoints
+ok - inbox: the ring submits its own stuck doorbell, skips other pending text, and retries a lost Enter once on both paths
+ok - inbox: the idempotent enqueue dedups an exact re-run onto the same record, handled or not
+ok - inbox: idempotent enqueue follows a record concurrently moved to handled
+ok - inbox: the handled mv is the idempotent ack and sequences are never reissued
+ok - inbox: concurrent writers serialize on the sequence lock and lose nothing
+ok - inbox: a writer retries when a competing lock vanishes after its failed claim
+ok - inbox: ladder bookkeeping ignores a concurrently removed inbox
+ok - inbox: fire-and-forget records stay durable and outside the ladder
+ok - inbox: a fire-and-forget record whose ring did not land is owed exactly one retry
+ok - inbox: without config/wait-no-turns a fire-and-forget retry mark stays quiet
+ok - inbox: the re-ring ladder paces by grace, escalates once, and resets on ack
+ok - watcher: an unhandled aged message on an idle pane re-rings without waking firstmate, and the ack silences it
+ok - watcher: busy deferrals survive restart, escalate once at the bound, and never type
+ok - watcher: delivery and acknowledgement reset the durable busy budget
+ok - watcher: unwritable busy bookkeeping surfaces without typing
+ok - watcher: idle successor surfaces once despite unremovable predecessor bookkeeping
+ok - watcher: busy successor surfaces once despite unremovable predecessor bookkeeping
+ok - watcher: persistent idle busy-reset failure escalates once and later instructions still deliver
+ok - watcher: persistent protected busy-reset failure escalates once and later instructions still deliver
+ok - watcher: busy limit '999999999999999999999999999999' escalates exactly once at 2
+ok - watcher: busy limit '1000000000' escalates exactly once at 2
+ok - watcher: busy limit '0' escalates exactly once at 2
+ok - watcher: busy limit '000' escalates exactly once at 2
+ok - watcher: busy limit '' escalates exactly once at 2
+ok - watcher: busy limit 'invalid' escalates exactly once at 2
+ok - watcher: busy limit '1' escalates exactly once at 1
+ok - watcher: busy limit '3' escalates exactly once at 3
+ok - watcher: unremovable obsolete busy state does not block or escalate a fire-and-forget retry
+ok - watcher: busy successor escalates once despite stale predecessor ring history
+ok - watcher: dead successor escalates once despite stale predecessor ring history
+ok - watcher: missing successor escalates once despite stale predecessor ring history
+ok - watcher: unwritable successor escalates once despite stale predecessor ring history
+ok - watcher: a non-busy protected delivery breaks the busy streak and preserves the attempt ladder
+ok - watcher: a non-busy failed delivery breaks the busy streak and preserves the attempt ladder
+ok - watcher: a healthy or empty inbox stays completely silent
+ok - watcher: acknowledgement silences an unwritable ladder without a stale wake
+ok - watcher: unwritable ladder bookkeeping surfaces a stale wake after the doorbell
+ok - watcher: a fire-and-forget record's owed retry rings exactly once and never escalates
+ok - watcher: a fire-and-forget retry waits out the worker's own decision, then rings once
+ok - watcher: spending a retry keeps a newer record's mark written during its ring
+ok - watcher: a spent ring budget emits exactly one ordinary stale wake for recovery
+ok - watcher: a positively dead pane is never typed into and surfaces exactly one stale wake
+ok - watcher: dead-pane recovery overrides stale busy state
+FM_TEST_END 2026-10-05T01:12:47Z tests/fm-task-inbox.test.sh exit=0 duration_ms=81489 gate_skip=false
+FM_TEST_BEGIN 2026-10-05T01:12:47Z tests/fm-send-inbox.test.sh family=backend-dispatch expected_gate_skip=none
+ok - fm-send inbox: the payload is recorded durably and only the doorbell is typed
+ok - fm-send inbox: a deep home rings the same short doorbell naming the inbox once
+ok - fm-send inbox: newlines are legal and the terminal can no longer truncate a steer
+ok - fm-send inbox: a re-send is a new durable record, never a retyped payload
+ok - fm-send inbox: a visibly pending composer skips the ring, and the steer stays durably sent
+ok - fm-send inbox: a failed doorbell is still a durably sent steer
+ok - fm-send inbox: a fire-and-forget ring that did not land owes one retry ring
+ok - fm-send inbox: without config/wait-no-turns a fire-and-forget ring is not retried
+ok - fm-send planes: slash and codex $skill invocations stay typed; plain $-text rides the inbox
+ok - fm-send planes: an explicit backend target keeps the typed plane
+ok - fm-send planes: the --key lifecycle path never touches the inbox
+ok - fm-send inbox: a secondmate steer records marker+corr in the body and is delivered at enqueue
+ok - fm-send inbox: lost reply bookkeeping never invites a resend, and the delivered steer is never duplicated
+ok - fm-send inbox: metadata lock contention fails bounded without enqueue
+ok - fm-send inbox: an unwritable record is a loud local failure that leaves no false expectation
+ok - fm-send: an empty or whitespace-only text steer refuses before marking, recording, or typing
+FM_TEST_END 2026-10-05T01:13:39Z tests/fm-send-inbox.test.sh exit=0 duration_ms=52219 gate_skip=false
+FM_TEST_SUMMARY total=4 failed=1 skipped_gate=0 duration_ms=270697
+FM_TEST_SUMMARY_FAMILY family=backend-dispatch count=3 duration_ms=188968 failed=1
+FM_TEST_SUMMARY_FAMILY family=watcher-wake-lock count=1 duration_ms=81489 failed=0
+FM_TEST_SLOWEST rank=1 script=tests/fm-backend-t3code.test.sh duration_ms=121986
+FM_TEST_SLOWEST rank=2 script=tests/fm-task-inbox.test.sh duration_ms=81489
+FM_TEST_SLOWEST rank=3 script=tests/fm-send-inbox.test.sh duration_ms=52219
+FM_TEST_SLOWEST rank=4 script=tests/fm-backend-t3code-events.test.sh duration_ms=14763
