@@ -1,0 +1,19 @@
+T3 server descriptor:
+serverVersion=0.0.45 protocol=1 autoSettleOptOut=True
+
+Default backend with T3 server running: tmux
+Explicit backend selection: t3code
+Attempt a T3 scout launch without a bearer:
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4515NV849MDK7R9X0JE8E1G/.test-tmp/fm-lab.8qGvuv
+error: backend=t3code has no bearer token at /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4515NV849MDK7R9X0JE8E1G/.test-tmp/fm-lab.8qGvuv/config/t3code-token; mint one with: npx t3@0.0.45 auth session issue --json --ttl 30d --label firstmate, then write its token field to /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4515NV849MDK7R9X0JE8E1G/.test-tmp/fm-lab.8qGvuv/config/t3code-token (mode 0600)
+exit=1
+No task metadata was created.
+
+Existing tmux backend on a private lab socket:
+@1
+printf 'FM_LIVE_TMUX_RESULT_%s\n' accepted
+bash-5.3$ printf 'FM_LIVE_TMUX_RESULT_%s\n' accepted
+FM_LIVE_TMUX_RESULT_accepted
+bash-5.3$
+Retired task endpoint state: missing
+Private lab teardown complete on exit.
