@@ -1,0 +1,139 @@
+FM_TEST_BEGIN 2026-10-07T17:25:56Z tests/fm-backend-t3code.test.sh family=backend-dispatch expected_gate_skip=none
+fm-afk-launch: away-posture record archived at /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4BP8ACYE19D236S81Y4VNHN/.test-phase-tmp/fm-backend-t3code-tests.t6PnLQ/restart-unknown-ready/home/state/afk-contracts/1791393957.afk-contract
+fm-afk-launch: away mode stopped; no daemon terminal was running, .afk cleared, and the posture record archived
+fm-afk-launch: away-posture record archived at /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4BP8ACYE19D236S81Y4VNHN/.test-phase-tmp/fm-backend-t3code-tests.t6PnLQ/restart-unknown-error/home/state/afk-contracts/1791393961.afk-contract
+fm-afk-launch: away mode stopped; no daemon terminal was running, .afk cleared, and the posture record archived
+ok - native restart re-arms discarded T3 stale warnings exactly once and preserves delivered suppression
+ok - away housekeeping preserves unknown stale rechecks and reports possible wedges until work resumes
+ok - T3 stale watcher: harness=codex session=error background=none turn=fresh -> dead
+ok - t3code probe: shell failures preserve liveness, report unknown busy state, defer away-mode injection, and bound inbox deferral
+ok - T3 stale lookup honors paused and captain-held declarations
+ok - T3 stale watcher: harness=codex session=running background=none turn=fresh -> absorb
+ok - T3 stale watcher: harness=claude session=running background=none turn=fresh -> absorb
+ok - T3 stale watcher: harness=codex session=starting background=none turn=fresh -> surface
+ok - T3 stale watcher: harness=codex session=ready background=none turn=fresh -> surface
+ok - T3 stale watcher: harness=codex session=stopped background=none turn=fresh -> dead
+ok - T3 stale watcher: harness=codex session=error background=none turn=fresh -> dead
+ok - T3 stale watcher: harness=codex session=ready background=working turn=fresh -> absorb
+ok - T3 stale watcher: harness=codex session=ready background=monitoring turn=fresh -> surface
+ok - T3 stale watcher: harness=codex session=running background=none turn=hung -> surface
+ok - T3 stale watcher: harness=codex session=ready background=working turn=hung -> surface
+ok - T3 stale watcher: harness=codex session=stopped background=working turn=fresh -> dead
+ok - T3 stale watcher: harness=codex session=error background=working turn=fresh -> dead
+ok - fm_backend_t3code_runtime_check: a missing token names the mint command
+ok - fm_backend_t3code_runtime_check: a 401 names the mint command
+ok - fm_backend_t3code_runtime_check: no origin names the runtime file and the override
+ok - fm_backend_t3code_runtime_check: stable floor, V2, capability, and authorization gates
+ok - fm_backend_t3code_project_ensure: matches by realpath, otherwise creates with the verified payload
+ok - fm_backend_t3code_model_selection: effort option ids per harness, default handling, instances file
+ok - fm_backend_t3code_thread_create/turn_start: verified command payloads
+error: backend=t3code cannot reach the T3 server at http://127.0.0.1:45233: fetch failed; start T3 Code and retry
+ok - thread.create transport retry reuses one commandId and pre-minted thread id
+ok - V2 and dispatch 404 refuse control and teardown without false success
+ok - fm_backend_t3code_thread_for_home: zero, one, ambiguous, and unreachable
+ok - T3 requires explicit selection and does not query the server during runtime detection
+ok - fm_backend_t3code_capture: renders the transcript tail and the session line
+ok - fm_backend_t3code_send_key: Escape and C-c interrupt, Enter no-ops, others refuse
+ok - fm_backend_t3code_send_text_submit: empty on accept, send-failed on rejection
+ok - t3code status table: every session status, background work, archived, 404, and unreachable rows
+ok - fm_backend_t3code_kill: stop then archive, idempotent on archived and 404, loud on failure
+ok - fm-backend dispatcher: routes every t3code primitive, validates and resolves t3_thread_id records
+ok - T3 harness admission refuses every non-T3 adapter and launch-time typing refuses without a thread read
+ok - fm_busy_classify: t3code native busy, idle, and unknown are trusted without a record
+ok - fm-control-lib: t3code key set, state-verified, native-exit, and no-replacement membership
+ok - fm-control.sh exit backend=t3code: one thread.session.stop, proven by the session reading stopped, idempotent
+ok - fm-control.sh relaunch backend=t3code: refused before anything is stopped, by the control plane and by the launch owner
+ok - fm-spawn.sh --backend t3code: leases the slot, creates the thread on it, records metadata, starts the launch turn
+ok - codex-cli 0.160.1: project config retained; shell FM_TASK_ID=t3codextrk2
+ok - fm-spawn.sh backend=t3code: compatible tracked Codex config launches, stays out of commits, and survives cleanup
+ok - tracked Codex overlay: edited files survive refusal, interrupted restoration recovers, quoted and dotted policy keys refuse
+ok - fm-spawn.sh --backend t3code codex: refuses to overwrite a project's tracked .codex/config.toml before any mutation
+ok - fm-spawn.sh --backend t3code claude: refuses to overwrite a project's tracked CLAUDE.local.md before any mutation
+ok - Claude channel refuses a symlink in the leased worktree without following it
+ok - untracked Codex config is preserved unless Firstmate's marker owns it
+ok - fm-spawn.sh --backend t3code codex: writes .codex/config.toml with GOTMPDIR, FM_TASK_ID, and TRACEPARENT
+not ok - fm-spawn.sh --backend t3code --secondmate should succeed against the fake T3 server
+error: secondmate home cannot be inside the firstmate repo: /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4BP8ACYE19D236S81Y4VNHN/.test-phase-tmp/fm-backend-t3code-tests.t6PnLQ/spawn-secondmate/sm-home: expected exit 0, got 1
+FM_TEST_END 2026-10-07T17:27:53Z tests/fm-backend-t3code.test.sh exit=1 duration_ms=117015 gate_skip=false
+FM_TEST_BEGIN 2026-10-07T17:27:53Z tests/fm-backend-t3code-events.test.sh family=backend-dispatch expected_gate_skip=none
+ok - T3 WebSocket subscription, thread filtering, normalization, reconnect, dedupe, and failure fallback
+ok - T3 stream treats working background liveness on a live session as active work, and only that
+ok - T3 watcher dispatch, durable wake, endpoint identity, and unchanged polling fallback
+FM_TEST_END 2026-10-07T17:28:08Z tests/fm-backend-t3code-events.test.sh exit=0 duration_ms=14647 gate_skip=false
+FM_TEST_BEGIN 2026-10-07T17:28:08Z tests/fm-watch-inbox-meta.test.sh family=unclassified expected_gate_skip=none
+ok - non-T3 inbox guard preserves no-target uncertainty and recorded busy/idle verdicts
+FM_TEST_END 2026-10-07T17:28:08Z tests/fm-watch-inbox-meta.test.sh exit=0 duration_ms=298 gate_skip=false
+FM_TEST_BEGIN 2026-10-07T17:28:09Z tests/fm-project-capacity.test.sh family=backend-dispatch expected_gate_skip=none
+ok - a project with no declared capacity keeps today's uncapped dispatch
+ok - a spawn is admitted while its project still has a free place
+ok - a spawn beyond capacity is deferred before any record, brief, endpoint, worktree, or backlog move exists
+ok - a project name with spaces is declared by taking the capacity from the last field
+ok - a project name beginning with # is declared, and a # comment stays a comment
+ok - a home reached through a symlink counts each of its workers once
+ok - a recorded PR handoff or a cleanup each frees exactly one place
+ok - a restart of a task id does not count that task's own record
+ok - only this project's ship and scout records hold places
+ok - every local home shares one declared capacity per project origin, and remote homes do not count
+ok - an unreadable state directory or task record refuses admission rather than undercounting
+ok - concurrent spawns can never both take the last place
+ok - a spawn that fails after admission leaves no record and holds no place
+ok - an unreadable declaration refuses every fresh spawn rather than guessing the limit
+ok - a batch reports a capacity deferral as deferred, not failed
+ok - an Orca spawn takes the shared project lock whenever a same-origin clone is capped and defers before creating anything
+FM_TEST_END 2026-10-07T17:29:18Z tests/fm-project-capacity.test.sh exit=0 duration_ms=69038 gate_skip=false
+FM_TEST_BEGIN 2026-10-07T17:29:18Z tests/fm-spawn-worktree-settle.test.sh family=backend-dispatch expected_gate_skip=none
+ok - a single transient stale pane_current_path read is not accepted as the worktree
+ok - an already-settled pane confirms on the next read, not a whole extra cycle
+ok - a transient primary-checkout pane read is not accepted as the worktree
+ok - a pane stuck on the primary checkout fails loudly at the deadline
+# all fm-spawn-worktree-settle tests passed
+FM_TEST_END 2026-10-07T17:29:28Z tests/fm-spawn-worktree-settle.test.sh exit=0 duration_ms=10319 gate_skip=false
+FM_TEST_BEGIN 2026-10-07T17:29:28Z tests/fm-control.test.sh family=backend-dispatch expected_gate_skip=none
+ok - fm-control exit: every verified harness gets its own verified exit command
+ok - fm-control interrupt: every verified harness gets its own verified key and repeat count
+ok - fm-control Devin interrupt: second press only after the armed hint, then busy invalidated without fabricating idle
+ok - fm-control Devin interrupt: an idle agent gets one Escape and reports not-running
+ok - fm-control Devin exit: a busy record whose turn already ended never opens the revert picker
+ok - fm-control Devin interrupt: a revert picker a press opened is closed with Escape, never Enter
+ok - fm-control Devin: an open revert picker refuses every typed command
+ok - fm-control interrupt: opencode needs a double Escape, claude a single one
+ok - fm-control: a harness with no verified control mechanics is refused, not guessed at
+ok - fm-control-lib: a recorded harness resolves to its verified adapter without guessing
+ok - fm-control-lib: only a runtime's own recorded session has a relaunch resume form
+ok - fm-control: prefixed recorded harnesses reach interrupt and exit mechanics
+ok - fm-control-lib: the backend key matrix matches each adapter's real send-key surface
+ok - fm-control-lib: adapter capability is per task kind, not per adapter alone
+ok - fm-control interrupt: a backend that cannot deliver the harness's key refuses instead of sending another
+ok - fm-control: a backend that cannot prove an agent stopped refuses exit and relaunch
+ok - fm-control-lib: stop-proving verbs are gated on the backends that really classify agent state
+ok - fm-control: a legacy window label is refused and the exact task id is named
+ok - fm-control: an explicit backend endpoint is never a control target
+ok - fm-control: an unrecorded task id is refused
+ok - fm-control: a record whose endpoint identity names another task is refused
+ok - fm-control: a remotely placed secondmate is refused by placement, not by a metadata complaint
+ok - fm-control: interrupt and exit lock before task-state resolution
+ok - fm-control: the verb list is closed - no raw keys, arbitrary text, or clear verb
+ok - fm-control: resume is refused with the determinism reason and the alternative
+ok - fm-control: profile and note flags belong to relaunch only
+ok - fm-control exit: an already-stopped agent is idempotent success with no bytes sent
+ok - fm-control exit: an unprovable tmux endpoint refuses instead of claiming the agent stopped
+ok - fm-control interrupt: refuses when no agent is running rather than keying a shell
+ok - fm-control exit: an endpoint whose process cannot be attributed refuses
+ok - fm-control exit: a busy agent receives interrupt delivery before the exit command
+ok - fm-control exit: an idle agent goes straight to its exit command
+ok - fm-control exit: retiring a codex incarnation drops busy_gen with the sidecar
+ok - fm-control exit: an already-open background-task picker is not typed into
+ok - fm-control exit: the Enter that opens the background-task picker is not followed by a confirming Enter
+ok - fm-control exit: a picker that renders after the submit returned is named when the stop wait times out
+ok - fm-control interrupt: unconfirmed delivery preserves observed busy state
+ok - fm-control interrupt: muse confirms cancellation from its session log
+ok - fm-control interrupt: postconditions are revalidated after acknowledgement polling
+ok - fm-control exit: an interrupt-stopped agent satisfies the gone-state postcondition
+ok - fm-control exit: a stubborn agent reports delivered input and an unconfirmed exit
+ok - fm-control interrupt: grok reports delivery without claiming cancellation
+ok - fm-control interrupt: grok's idle footer does not confirm cancellation
+ok - fm-control: a lifecycle command to a secondmate is unmarked and opens no reply expectation
+ok - fm-control's arrival leaves fm-send's from-firstmate marking untouched
+FM_TEST_END 2026-10-07T17:30:44Z tests/fm-control.test.sh exit=0 duration_ms=75617 gate_skip=false
+FM_TEST_BEGIN 2026-10-07T17:30:44Z tests/fm-watch-arm.test.sh family=watcher-wake-lock expected_gate_skip=none
+ok - watch-arm: an attached arm reports the wake its cycle delivered instead of a false failure

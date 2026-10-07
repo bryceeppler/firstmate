@@ -1,0 +1,31 @@
+FM_TEST_BEGIN 2026-10-07T17:29:43Z tests/fm-backend-t3code.test.sh family=backend-dispatch expected_gate_skip=none
+fm-afk-launch: away-posture record archived at /home/bryce/.no-mistakes/evidence/01M4BP8ACYE19D236S81Y4VNHN/test-tmp/fm-backend-t3code-tests.Y3BW9Y/restart-unknown-ready/home/state/afk-contracts/1791394183.afk-contract
+fm-afk-launch: away mode stopped; no daemon terminal was running, .afk cleared, and the posture record archived
+fm-afk-launch: away-posture record archived at /home/bryce/.no-mistakes/evidence/01M4BP8ACYE19D236S81Y4VNHN/test-tmp/fm-backend-t3code-tests.Y3BW9Y/restart-unknown-error/home/state/afk-contracts/1791394187.afk-contract
+fm-afk-launch: away mode stopped; no daemon terminal was running, .afk cleared, and the posture record archived
+ok - native restart re-arms discarded T3 stale warnings exactly once and preserves delivered suppression
+ok - away housekeeping preserves unknown stale rechecks and reports possible wedges until work resumes
+ok - T3 stale watcher: harness=codex session=error background=none turn=fresh -> dead
+ok - t3code probe: shell failures preserve liveness, report unknown busy state, defer away-mode injection, and bound inbox deferral
+ok - T3 stale lookup honors paused and captain-held declarations
+ok - T3 stale watcher: harness=codex session=running background=none turn=fresh -> absorb
+ok - T3 stale watcher: harness=claude session=running background=none turn=fresh -> absorb
+ok - T3 stale watcher: harness=codex session=starting background=none turn=fresh -> surface
+ok - T3 stale watcher: harness=codex session=ready background=none turn=fresh -> surface
+ok - T3 stale watcher: harness=codex session=stopped background=none turn=fresh -> dead
+ok - T3 stale watcher: harness=codex session=error background=none turn=fresh -> dead
+ok - T3 stale watcher: harness=codex session=ready background=working turn=fresh -> absorb
+ok - T3 stale watcher: harness=codex session=ready background=monitoring turn=fresh -> surface
+ok - T3 stale watcher: harness=codex session=running background=none turn=hung -> surface
+ok - T3 stale watcher: harness=codex session=ready background=working turn=hung -> surface
+ok - T3 stale watcher: harness=codex session=stopped background=working turn=fresh -> dead
+ok - T3 stale watcher: harness=codex session=error background=working turn=fresh -> dead
+ok - fm_backend_t3code_runtime_check: a missing token names the mint command
+ok - fm_backend_t3code_runtime_check: a 401 names the mint command
+ok - fm_backend_t3code_runtime_check: no origin names the runtime file and the override
+ok - fm_backend_t3code_runtime_check: stable floor, V2, capability, and authorization gates
+ok - fm_backend_t3code_project_ensure: matches by realpath, otherwise creates with the verified payload
+ok - fm_backend_t3code_model_selection: effort option ids per harness, default handling, instances file
+ok - fm_backend_t3code_thread_create/turn_start: verified command payloads
+error: backend=t3code cannot reach the T3 server at http://127.0.0.1:44137: fetch failed; start T3 Code and retry
+ok - thread.create transport retry reuses one commandId and pre-minted thread id

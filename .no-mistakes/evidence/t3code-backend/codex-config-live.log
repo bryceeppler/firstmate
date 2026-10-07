@@ -1,0 +1,7 @@
+codex-cli 0.160.1
+{"loaded_model": "gpt-5.6-sol", "loaded_task_environment": {"FM_TASK_INBOX": "/home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4BP8ACYE19D236S81Y4VNHN/.test-phase-tmp/codex-config-0h4n1tef/inbox", "FM_TASK_ID": "live-t3-merge", "COMPACT_ADVISER_DISABLE": "1"}}
+Codex command/exec: {"exitCode": 0, "stdout": "live-t3-merge\n1\n", "stderr": ""}
+Git sees no project changes while the tracked overlay is active.
+Cleanup restored the original project config bytes and cleared the temporary skip-worktree flag.
+Existing environment policy refusal: error: /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4BP8ACYE19D236S81Y4VNHN/.test-phase-tmp/codex-config-0h4n1tef/repo/.codex/config.toml: already defines [shell_environment_policy]; refusing to replace the project's policy table
+Existing project policy remained unchanged after refusal.

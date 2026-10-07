@@ -1,0 +1,28 @@
+Command: /usr/bin/ps -o comm= -p 4077648
+exit: 124 stdout: '' stderr: ''
+Command: /usr/bin/ps --quick-pid 4077648 -o comm=
+exit: 0 stdout: 'python3\n' stderr: ''
+ 2358904 bash State:	S (sleeping) do_wait
+  2546734 bash State:	S (sleeping) do_wait
+   2899321 bash State:	S (sleeping) do_wait
+    3113131 bash State:	S (sleeping) anon_pipe_read
+     3114948 bash State:	S (sleeping) anon_pipe_read
+      3114968 bash State:	S (sleeping) do_wait
+       3114973 bash State:	S (sleeping) anon_pipe_read
+        3115905 bash State:	S (sleeping) anon_pipe_read
+         3732605 bash State:	S (sleeping) anon_pipe_read
+          3732608 bash State:	S (sleeping) do_wait
+           3732613 ps State:	D (disk sleep) __access_remote_vm
+  2546736 tee State:	S (sleeping) anon_pipe_read
+ 2487961 bash State:	S (sleeping) do_wait
+  2488015 bash State:	S (sleeping) anon_pipe_read
+   2488158 MainThread State:	S (sleeping) ep_poll
+   3027084 bash State:	S (sleeping) do_wait
+    3027127 bash State:	S (sleeping) anon_pipe_read
+     3028186 bash State:	S (sleeping) do_wait
+      3028276 bash State:	S (sleeping) anon_pipe_read
+       3028422 bash State:	S (sleeping) anon_pipe_read
+        3732438 bash State:	S (sleeping) anon_pipe_read
+         3732445 bash State:	S (sleeping) do_wait
+          3732453 ps State:	D (disk sleep) __access_remote_vm
+  2488016 tee State:	S (sleeping) anon_pipe_read
