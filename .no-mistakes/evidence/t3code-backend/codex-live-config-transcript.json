@@ -1,0 +1,35 @@
+[
+  {
+    "method": "config/read",
+    "result": {
+      "model": "gpt-5.6-sol",
+      "shell_environment_policy": {
+        "inherit": null,
+        "ignore_default_excludes": null,
+        "exclude": null,
+        "set": {
+          "FM_TASK_ID": "t3-live-config-lab"
+        },
+        "include_only": null,
+        "filters": null,
+        "experimental_use_profile": null
+      }
+    }
+  },
+  {
+    "method": "command/exec",
+    "command": [
+      "/usr/bin/printenv",
+      "FM_TASK_ID"
+    ],
+    "result": {
+      "exitCode": 0,
+      "stdout": "t3-live-config-lab\n",
+      "stderr": ""
+    }
+  },
+  {
+    "method": "fm-t3code-codex-env.sh cleanup",
+    "restored_original_configuration": true
+  }
+]

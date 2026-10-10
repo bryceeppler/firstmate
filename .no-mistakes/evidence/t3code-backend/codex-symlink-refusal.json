@@ -1,0 +1,7 @@
+{
+  "command": "bin/fm-t3code-codex-env.sh install <isolated-project> FM_TASK_ID=symlink-attempt",
+  "exit": 1,
+  "stdout": "",
+  "stderr": "error: /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KYQ3Z3JH5Q7C0F16PXWXTH/.test-phase-tmp/codex-symlink.sn5k62kv/project/.codex/config.toml: refusing a symlink in the Codex environment channel\n",
+  "sentinel_unchanged": true
+}

@@ -1,0 +1,48 @@
+[
+  {
+    "scenario": "Status without a credential refuses with a sign-in instruction",
+    "command": [
+      "node",
+      "bin/fm-t3-mcp.mjs",
+      "status"
+    ],
+    "exit": 4,
+    "output": "{\"ok\":false,\"error\":{\"code\":\"no_credential\",\"message\":\"no T3 credential at /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KYQ3Z3JH5Q7C0F16PXWXTH/.test-phase-tmp/fm-lab.ue42cqc1/config/t3code-token; the captain signs in with: bin/fm-t3-mcp.mjs login --access full-access\"}}\nfm-t3-mcp: no T3 credential at /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KYQ3Z3JH5Q7C0F16PXWXTH/.test-phase-tmp/fm-lab.ue42cqc1/config/t3code-token; the captain signs in with: bin/fm-t3-mcp.mjs login --access full-access\n"
+  },
+  {
+    "scenario": "Send without a credential refuses before delivery",
+    "command": [
+      "node",
+      "bin/fm-t3-mcp.mjs",
+      "send",
+      "--thread",
+      "mcp:00000000-0000-4000-8000-000000000001",
+      "--message-file",
+      "/home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KYQ3Z3JH5Q7C0F16PXWXTH/.test-phase-tmp/fm-lab.ue42cqc1/message",
+      "--client-request-id",
+      "fm-lab-credential-guard"
+    ],
+    "exit": 4,
+    "output": "{\"ok\":false,\"error\":{\"code\":\"no_credential\",\"message\":\"no T3 credential at /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KYQ3Z3JH5Q7C0F16PXWXTH/.test-phase-tmp/fm-lab.ue42cqc1/config/t3code-token; the captain signs in with: bin/fm-t3-mcp.mjs login --access full-access\"}}\nfm-t3-mcp: no T3 credential at /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KYQ3Z3JH5Q7C0F16PXWXTH/.test-phase-tmp/fm-lab.ue42cqc1/config/t3code-token; the captain signs in with: bin/fm-t3-mcp.mjs login --access full-access\n"
+  },
+  {
+    "scenario": "Installed T3 never selects the backend implicitly",
+    "command": [
+      "bash",
+      "-c",
+      ". bin/fm-backend.sh; fm_backend_name"
+    ],
+    "exit": 0,
+    "output": "tmux"
+  },
+  {
+    "scenario": "Explicit home configuration selects T3",
+    "command": [
+      "bash",
+      "-c",
+      ". bin/fm-backend.sh; fm_backend_name"
+    ],
+    "exit": 0,
+    "output": "t3code"
+  }
+]

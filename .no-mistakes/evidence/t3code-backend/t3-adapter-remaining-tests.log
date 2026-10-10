@@ -1,0 +1,15 @@
+ok - fm-spawn.sh --backend t3code --secondmate: project on the home, root-strategy thread, charter message, launch prefix as settings env
+ok - fm-spawn.sh --backend t3code --secondmate codex: launch prefix as .codex/config.toml shell_environment_policy
+ok - fm-spawn.sh --backend t3code: refuses before mutation when the credential is rejected
+ok - fm-teardown.sh backend=t3code: interrupts and archives the thread with a proven close, then returns the slot
+ok - fm-teardown.sh backend=t3code secondmate: interrupts and archives, then ends the home's lingering provider process before the home is removed; an unprovable scan keeps the home
+ok - fm-teardown.sh backend=t3code secondmate: interrupts and archives, then ends the home's lingering provider process before the home is removed; an unprovable scan keeps the home
+ok - fm-teardown.sh backend=t3code pooled secondmate: the slot returns only after the home's provider process ended
+ok - fm-teardown.sh backend=t3code: an unreachable or gate-refused server keeps the slot a live thread still points at
+ok - fm-spawn.sh --backend t3code: refuses config/claude-permission-mode it cannot honor before any mutation
+ok - fm-spawn.sh --backend t3code: refuses config/launch-env-allowlist it cannot honor before any mutation
+ok - fm-spawn.sh --backend t3code: an abort archives the thread, then returns the lease
+ok - fm-spawn.sh --backend t3code: an abort that cannot archive the thread keeps the lease
+ok - fm-spawn.sh --backend t3code: a launch whose response was lost keeps the lease
+ok - fm-spawn.sh --backend t3code: a thread T3 bound elsewhere is archived and the lease returned
+ok - fm-spawn.sh --backend t3code: a launch brief whose reply is lost is reported unconfirmed and keeps its task record

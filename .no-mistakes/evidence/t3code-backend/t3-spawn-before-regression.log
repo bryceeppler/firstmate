@@ -1,0 +1,5 @@
+not ok - a possibly delivered brief must never be reported as refused (unexpected: 'T3 refused the launch turn')
+--- output ---
+warning: T3 telemetry at http://127.0.0.1:46203 is on; run the server that hosts Firstmate workers with T3CODE_TELEMETRY_ENABLED=false (docs/t3code-backend.md)
+fm-t3-mcp: the reply to t3_thread_send on thread mcp:5d7bc137-41da-4773-b6d9-2c75a610fa3b was lost (T3 at http://127.0.0.1:46203 is unreachable: UND_ERR_SOCKET: fetch failed); T3 may have committed it, so retry only with client request id fm-1791672038-3023565-3964
+error: T3 refused the launch turn for t3uncertainturn on thread mcp:5d7bc137-41da-4773-b6d9-2c75a610fa3b; inspect the thread in T3 Code
