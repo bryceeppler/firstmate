@@ -241,6 +241,10 @@ fm_secondmate_liveness_probe() {  # <meta> <id> <full|poll>
         FM_SM_LIVE_KILL=1
         FM_SM_LIVE_CAUSE="confirmed agent absence on existing endpoint"
       else
+        # A T3 thread reads missing once archived, which T3 may still be
+        # finishing; its idempotent kill re-proves the close before a
+        # replacement thread is launched.
+        [ "$backend" != t3code ] || FM_SM_LIVE_KILL=1
         FM_SM_LIVE_CAUSE="recorded endpoint confidently missing"
       fi
       FM_SM_LIVE_WHERE="backend=$backend"
@@ -265,10 +269,11 @@ fm_secondmate_liveness_probe() {  # <meta> <id> <full|poll>
 #
 # Acts on a `relaunchable` probe verdict for <id>: kills a confirmed-dead local
 # endpoint first (FM_SM_LIVE_KILL), records the attempt and its outcome in the
-# per-mate ledger, then runs the guarded secondmate spawn. A close that cannot
-# be proven stops there: the endpoint and its metadata stay as recorded, the
-# verdict becomes skipped, and nothing is spawned, because a second endpoint
-# beside a live one is the duplicate supervisor recovery must never create.
+# per-mate ledger, then runs the guarded secondmate spawn. On t3code a close
+# that cannot be proven stops there: the thread and its metadata stay as
+# recorded, the verdict becomes skipped, and nothing is spawned, because a
+# second thread beside a live one is the duplicate supervisor recovery must
+# never create. Other backends keep their existing best-effort kill.
 # FM_SM_LIVE_RESUME instead sends the endpoint's backend resume turn and spawns
 # nothing. A positive timeout
 # wraps the spawn in fm_run_timed so a watcher poll stays bounded; 124/137 mean
@@ -300,7 +305,9 @@ fm_secondmate_liveness_relaunch() {  # <meta> <id> [timeout-secs]
       window=$(fm_meta_get "$meta" window)
       target=$window
     fi
-    if [ -n "$target" ] && ! fm_backend_kill "$backend" "$target" 2>/dev/null; then
+    if [ "$backend" != t3code ]; then
+      [ -z "$target" ] || fm_backend_kill "$backend" "$target" 2>/dev/null || true
+    elif [ -n "$target" ] && ! fm_backend_kill "$backend" "$target" 2>/dev/null; then
       fm_secondmate_liveness_ledger_add "$id" failed || true
       FM_SM_LIVE_STATUS=skipped
       FM_SM_LIVE_REASON="could not prove the old $backend endpoint $target closed; it and its record are left in place, not replaced"
