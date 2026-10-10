@@ -1,0 +1,4 @@
+{"method": "initialize", "result": {"userAgent": "fm-live-config/0.162.1 (Ubuntu 26.4.0; x86_64) unknown (fm-live-config; 1)", "codexHome": "/home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KJ3DAC2WMJ6DWY73BKM6PW/.validation-tmp/native-codex/codex-home", "platformFamily": "unix", "platformOs": "linux"}}
+{"method": "config/read", "model": "gpt-6-sol", "environment": {"FM_TASK_INBOX": "/home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KJ3DAC2WMJ6DWY73BKM6PW/.validation-tmp/native-codex/inbox", "FM_TASK_ID": "t3-native-config"}}
+{"method": "command/exec", "result": {"exitCode": 0, "stdout": "t3-native-config\n/home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KJ3DAC2WMJ6DWY73BKM6PW/.validation-tmp/native-codex/inbox\n", "stderr": ""}}
+{"cleanup": "original CRLF bytes restored; Git index unchanged"}

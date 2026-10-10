@@ -1,0 +1,10 @@
+ok - fm-teardown.sh backend=t3code secondmate: interrupts and archives before the home is removed, leaves the T3 project
+ok - fm-teardown.sh backend=t3code secondmate: interrupts and archives before the home is removed, leaves the T3 project
+ok - fm-teardown.sh backend=t3code: an unreachable or gate-refused server keeps the slot a live thread still points at
+ok - fm-spawn.sh --backend t3code: refuses config/claude-permission-mode it cannot honor before any mutation
+ok - fm-spawn.sh --backend t3code: refuses config/launch-env-allowlist it cannot honor before any mutation
+ok - fm-spawn.sh --backend t3code: an abort archives the thread, then returns the lease
+ok - fm-spawn.sh --backend t3code: an abort that cannot archive the thread keeps the lease
+ok - fm-spawn.sh --backend t3code: a launch whose response was lost keeps the lease
+ok - fm-spawn.sh --backend t3code: a thread T3 bound elsewhere is archived and the lease returned
+ok - fm-spawn.sh --backend t3code: a launch message whose response is lost keeps its Git hook directory

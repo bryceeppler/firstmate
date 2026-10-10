@@ -1,0 +1,1 @@
+fm-t3-mcp: T3 launched thread mcp:12d93914-9982-4adc-ad85-a6292498683a but reading back its binding failed (T3 t3_thread_read failed: projection lag); asked T3 to archive it, so confirm it is archived in T3 Code

@@ -1,0 +1,1 @@
+{"ok":false,"error":{"code":"capability_gate","message":"T3 0.0.46-nightly.fake at http://127.0.0.1:39947 lacks t3_thread_list; backend=t3code needs a T3 with the Orchestrator V2 thread tools (docs/t3code-backend.md)","serverVersion":"0.0.46-nightly.fake","missing":["t3_thread_list"]}}

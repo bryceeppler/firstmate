@@ -1,0 +1,17 @@
+{"path":"/mcp","method":"initialize","auth":"tok-test-1601816901","protocol":"2025-06-18"}
+{"path":"/mcp","method":"notifications/initialized","auth":"tok-test-1601816901","protocol":"2025-06-18"}
+{"path":"/mcp","method":"tools/list","auth":"tok-test-1601816901","protocol":"2025-06-18"}
+{"path":"/mcp","method":"tools/call","tool":"t3_environment_read","arguments":{},"auth":"tok-test-1601816901","protocol":"2025-06-18"}
+{"path":"/mcp","method":"initialize","auth":"tok-test-1601816901","protocol":"2025-06-18"}
+{"path":"/mcp","method":"notifications/initialized","auth":"tok-test-1601816901","protocol":"2025-06-18"}
+{"path":"/mcp","method":"tools/list","auth":"tok-test-1601816901","protocol":"2025-06-18"}
+{"path":"/mcp","method":"tools/call","tool":"t3_environment_read","arguments":{},"auth":"tok-test-1601816901","protocol":"2025-06-18"}
+{"path":"/mcp","method":"tools/call","tool":"t3_project_list","arguments":{"limit":100},"auth":"tok-test-1601816901","protocol":"2025-06-18"}
+{"tool":"treehouse","args":"get --lease --lease-holder t3readback-failure","cwd":"/home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KJ3DAC2WMJ6DWY73BKM6PW/.validation-tmp/fm-backend-t3code-tests.2O2RAe/spawn-readback-failure/spawn-project"}
+{"path":"/mcp","method":"initialize","auth":"tok-test-1601816901","protocol":"2025-06-18"}
+{"path":"/mcp","method":"notifications/initialized","auth":"tok-test-1601816901","protocol":"2025-06-18"}
+{"path":"/mcp","method":"tools/list","auth":"tok-test-1601816901","protocol":"2025-06-18"}
+{"path":"/mcp","method":"tools/call","tool":"t3_environment_read","arguments":{},"auth":"tok-test-1601816901","protocol":"2025-06-18"}
+{"path":"/mcp","method":"tools/call","tool":"t3_thread_launch","arguments":{"projectId":"proj-1","title":"fm-t3readback-failure","modelSelection":{"instanceId":"claudeAgent","model":"claude-sonnet-5"},"runtimeMode":"full-access","interactionMode":"default","workspaceStrategy":{"type":"existing_worktree","worktreePath":"/home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KJ3DAC2WMJ6DWY73BKM6PW/.validation-tmp/fm-backend-t3code-tests.2O2RAe/spawn-readback-failure/spawn-wt","branch":"fm/t3readback-failure"}},"auth":"tok-test-1601816901","protocol":"2025-06-18"}
+{"path":"/mcp","method":"tools/call","tool":"t3_thread_read","arguments":{"threadId":"mcp:03dbd931-e48e-47ee-b17d-f2e3dcb7e8f3","limit":1,"runLimit":1},"auth":"tok-test-1601816901","protocol":"2025-06-18"}
+{"path":"/mcp","method":"tools/call","tool":"t3_thread_organize","arguments":{"threadId":"mcp:03dbd931-e48e-47ee-b17d-f2e3dcb7e8f3","action":"archive"},"auth":"tok-test-1601816901","protocol":"2025-06-18"}

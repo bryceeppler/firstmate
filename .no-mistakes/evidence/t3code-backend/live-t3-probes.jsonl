@@ -1,0 +1,2 @@
+{"action":"initialize with invalid bearer","origin":"http://127.0.0.1:3773","code":"unauthorized","exit":4,"message":"T3 at http://127.0.0.1:3773 rejected the credential (HTTP 401); it was revoked or belongs to another server, so the captain signs in again"}
+{"action":"probe actual listening server environment","origin":"http://127.0.0.1:3773","telemetry":"on"}

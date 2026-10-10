@@ -1,0 +1,49 @@
+fm-afk-launch: away-posture record archived at /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KJ3DAC2WMJ6DWY73BKM6PW/.validation-tmp/fm-backend-t3code-tests.uJcFu5/restart-unknown-completed/home/state/afk-contracts/1791658408.afk-contract
+fm-afk-launch: away mode stopped; no daemon terminal was running, .afk cleared, and the posture record archived
+fm-afk-launch: away-posture record archived at /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KJ3DAC2WMJ6DWY73BKM6PW/.validation-tmp/fm-backend-t3code-tests.uJcFu5/restart-unknown-failed/home/state/afk-contracts/1791658410.afk-contract
+fm-afk-launch: away mode stopped; no daemon terminal was running, .afk cleared, and the posture record archived
+ok - native restart re-arms discarded T3 stale warnings exactly once and preserves delivered suppression
+ok - away housekeeping preserves unknown stale rechecks and reports possible wedges until work resumes
+ok - T3 stale watcher: harness=codex status=failed turn=fresh -> dead
+ok - t3code: a failed thread read reports unknown busy state, submits no away-mode injection, and keeps stale rechecks uncertain
+ok - T3 stale lookup honors paused and captain-held declarations
+ok - T3 stale watcher: harness=codex status=running turn=fresh -> absorb
+ok - T3 stale watcher: harness=claude status=running turn=fresh -> absorb
+ok - T3 stale watcher: harness=codex status=waiting turn=fresh -> absorb
+ok - T3 stale watcher: harness=codex status=starting turn=fresh -> surface
+ok - T3 stale watcher: harness=codex status=completed turn=fresh -> surface
+ok - T3 stale watcher: harness=codex status=failed turn=fresh -> dead
+ok - T3 stale watcher: harness=codex status=running turn=hung -> surface
+ok - fm_backend_t3code_runtime_check: a missing credential names the sign-in
+ok - fm_backend_t3code_runtime_check: a 401 names the fresh sign-in
+warning: T3 telemetry at http://127.0.0.1:40883 is on; run the server that hosts Firstmate workers with T3CODE_TELEMETRY_ENABLED=false (docs/t3code-backend.md)
+ok - fm_backend_t3code_runtime_check: the tools/list gate and environment pin refuse control and teardown without a mutation
+ok - fm_backend_t3code_project_ensure: matches by realpath, otherwise creates with the fm- title
+ok - fm_backend_t3code_model_selection: effort option ids per harness, default handling, instances file
+ok - fm_backend_t3code_thread_create/turn_start: verified t3_thread_launch and t3_thread_send payloads
+ok - fm_backend_t3code_thread_create: a lost reply is uncertain and never retried; a mis-bound thread is archived and refused
+ok - fm_backend_t3code_thread_for_home: zero, one, ambiguous, and unreachable
+ok - T3 requires explicit selection and does not query the server during runtime detection
+ok - fm_backend_t3code_capture: renders the activity tail and the thread's status line
+ok - fm_backend_t3code_send_key: Escape and C-c interrupt, Enter no-ops, others refuse
+ok - fm_backend_t3code_send_text_submit: empty on accept, send-failed on rejection
+ok - t3code status table: every V2 thread status, archived, missing, unreachable, and unreadable rows
+ok - fm_backend_t3code_kill: interrupt then archive with a proven close, idempotent on archived and missing, loud on failure
+ok - fm-backend dispatcher: routes every t3code primitive, validates and resolves t3_thread_id records, and polls
+ok - T3 harness admission refuses every non-T3 adapter and launch-time typing refuses without a thread read
+ok - fm_busy_classify: t3code native busy, idle, and unknown are trusted without a record
+ok - fm-control-lib: t3code key set, state-verified, no-exit, and no-replacement membership
+ok - fm-control.sh backend=t3code: exit refuses before any call (V2 has no session stop); interrupt ends the turn natively
+ok - fm-control.sh relaunch backend=t3code: refused before anything is stopped, by the control plane and by the launch owner
+ok - fm-spawn.sh --backend t3code: leases the slot, launches the thread on it, records metadata, sends the launch brief
+skip: live: disabled by FM_T3_CODEX_CONFIG_LIVE=0
+ok - fm-spawn.sh backend=t3code: compatible tracked Codex config launches, stays out of commits, and survives cleanup
+ok - tracked Codex overlay: edited files survive refusal, interrupted restoration recovers, quoted and dotted policy keys refuse
+ok - fm-spawn.sh --backend t3code codex: refuses to overwrite a project's tracked .codex/config.toml before any mutation
+ok - fm-spawn.sh --backend t3code claude: refuses to overwrite a project's tracked CLAUDE.local.md before any mutation
+ok - Claude channel refuses a symlink in the leased worktree without following it
+ok - untracked Codex config is preserved unless Firstmate's marker owns it
+ok - fm-spawn.sh --backend t3code codex: writes .codex/config.toml with GOTMPDIR, FM_TASK_ID, and TRACEPARENT
+not ok - fm-spawn.sh --backend t3code --secondmate should succeed against the fake T3 server
+warning: T3 telemetry at http://127.0.0.1:40883 is on; run the server that hosts Firstmate workers with T3CODE_TELEMETRY_ENABLED=false (docs/t3code-backend.md)
+error: secondmate home cannot be inside the firstmate repo: /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KJ3DAC2WMJ6DWY73BKM6PW/.validation-tmp/fm-backend-t3code-tests.uJcFu5/spawn-secondmate/sm-home: expected exit 0, got 1

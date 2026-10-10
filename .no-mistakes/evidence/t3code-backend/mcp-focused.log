@@ -1,0 +1,15 @@
+ok - fm-t3-mcp login: PKCE sign-in writes a 0600 credential with the environment id and prints no secret
+ok - fm-t3-mcp login: the origin defaults to FM_T3CODE_ORIGIN, then T3's runtime file, else refuses naming both
+ok - fm-t3-mcp login: refuses every ceiling but full-access before any request
+ok - fm-t3-mcp status: gate passes over JSON and SSE replies with the 2025-06-18 protocol header
+ok - fm-t3-mcp gate: refuses a server missing a required tool or its identity tool
+ok - fm-t3-mcp: refuses a server whose environment id differs from the credential's
+ok - fm-t3-mcp credential: refuses expired, missing, and over-readable credentials, and warns before expiry
+ok - fm-t3-mcp: a 401 from a revoked credential is a local refusal naming a fresh sign-in
+ok - fm-t3-mcp projects: matched by real path, deleted ones skipped, project-read returns the default model
+ok - fm-t3-mcp launch: idle full-access thread on the existing worktree or the project root, with the given model selection
+ok - fm-t3-mcp launch: refuses a binding T3 did not honor, and reports a lost, unproven, or unarchivable launch as uncertain
+ok - fm-t3-mcp thread verbs: idempotent send, state and turn time, bounded capture, interrupt claims, and proven archive
+ok - fm-t3-mcp thread-for-root: only an unarchived, running, worktree-less thread on the root resolves
+ok - fm-t3-mcp: tool errors exit 3 with T3's code, an unreachable server exits 1
+ok - fm-t3-mcp status: reports telemetry off only when the server process proves it, and warns otherwise

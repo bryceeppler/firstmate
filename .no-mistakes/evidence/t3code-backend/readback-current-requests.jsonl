@@ -1,0 +1,7 @@
+{"path":"/mcp","method":"initialize","auth":"tok-test-320026343","protocol":"2025-06-18"}
+{"path":"/mcp","method":"notifications/initialized","auth":"tok-test-320026343","protocol":"2025-06-18"}
+{"path":"/mcp","method":"tools/list","auth":"tok-test-320026343","protocol":"2025-06-18"}
+{"path":"/mcp","method":"tools/call","tool":"t3_environment_read","arguments":{},"auth":"tok-test-320026343","protocol":"2025-06-18"}
+{"path":"/mcp","method":"tools/call","tool":"t3_thread_launch","arguments":{"projectId":"mcp:proj-1fdb821f-46dd-4368-8615-3074a2e5d935","title":"regression","modelSelection":{"instanceId":"codex","model":"gpt-6-sol"},"runtimeMode":"full-access","interactionMode":"default","workspaceStrategy":{"type":"existing_worktree","worktreePath":"/home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KJ3DAC2WMJ6DWY73BKM6PW/.validation-tmp/fm-review-regressions.l8hwDs/worktree"}},"auth":"tok-test-320026343","protocol":"2025-06-18"}
+{"path":"/mcp","method":"tools/call","tool":"t3_thread_read","arguments":{"threadId":"mcp:12d93914-9982-4adc-ad85-a6292498683a","limit":1,"runLimit":1},"auth":"tok-test-320026343","protocol":"2025-06-18"}
+{"path":"/mcp","method":"tools/call","tool":"t3_thread_organize","arguments":{"threadId":"mcp:12d93914-9982-4adc-ad85-a6292498683a","action":"archive"},"auth":"tok-test-320026343","protocol":"2025-06-18"}
