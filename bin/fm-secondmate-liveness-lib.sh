@@ -119,6 +119,10 @@ fm_secondmate_liveness_recent_attempts() {  # <id> <window-secs>
 #   FM_SM_LIVE_STATE   the raw classifier/state word
 #   FM_SM_LIVE_KILL    1 when relaunch must first kill a confirmed-dead local
 #                      endpoint (its shell husk occupies the name)
+#   FM_SM_LIVE_RESUME  1 when relaunch continues the endpoint in place instead
+#                      of replacing it: a T3 thread whose last run failed is
+#                      still readable and takes a new turn on its own
+#                      transcript, so it is resumed, never replaced
 #   FM_SM_LIVE_CAUSE   relaunch cause phrase, on relaunchable
 #   FM_SM_LIVE_WHERE   backend=<b> or host=<h>, on relaunchable
 #   FM_SM_LIVE_REASON  exact skip suffix, on skipped
@@ -131,7 +135,7 @@ fm_secondmate_liveness_recent_attempts() {  # <id> <window-secs>
 # relaunchable verdict could be acted on.
 fm_secondmate_liveness_probe() {  # <meta> <id> <full|poll>
   local meta=$1 id=$2 mode=$3
-  FM_SM_LIVE_STATUS=skipped FM_SM_LIVE_STATE=unknown FM_SM_LIVE_KILL=0
+  FM_SM_LIVE_STATUS=skipped FM_SM_LIVE_STATE=unknown FM_SM_LIVE_KILL=0 FM_SM_LIVE_RESUME=0
   FM_SM_LIVE_CAUSE='' FM_SM_LIVE_WHERE='' FM_SM_LIVE_REASON='' FM_SM_LIVE_LINE=''
   local window harness remote_host remote_rc out agent_state readiness_reason route_out remote_backend
   window=$(fm_meta_get "$meta" window)
@@ -229,7 +233,10 @@ fm_secondmate_liveness_probe() {  # <meta> <id> <full|poll>
       ;;
     dead|missing)
       FM_SM_LIVE_STATUS=relaunchable
-      if [ "$agent_state" = dead ]; then
+      if [ "$agent_state" = dead ] && [ "$backend" = t3code ]; then
+        FM_SM_LIVE_RESUME=1
+        FM_SM_LIVE_CAUSE="a failed run on its still-readable T3 thread, resumed in place"
+      elif [ "$agent_state" = dead ]; then
         FM_SM_LIVE_KILL=1
         FM_SM_LIVE_CAUSE="confirmed agent absence on existing endpoint"
       else
@@ -257,7 +264,12 @@ fm_secondmate_liveness_probe() {  # <meta> <id> <full|poll>
 #
 # Acts on a `relaunchable` probe verdict for <id>: kills a confirmed-dead local
 # endpoint first (FM_SM_LIVE_KILL), records the attempt and its outcome in the
-# per-mate ledger, then runs the guarded secondmate spawn. A positive timeout
+# per-mate ledger, then runs the guarded secondmate spawn. A close that cannot
+# be proven stops there: the endpoint and its metadata stay as recorded, the
+# verdict becomes skipped, and nothing is spawned, because a second endpoint
+# beside a live one is the duplicate supervisor recovery must never create.
+# FM_SM_LIVE_RESUME instead sends the endpoint's backend resume turn and spawns
+# nothing. A positive timeout
 # wraps the spawn in fm_run_timed so a watcher poll stays bounded; 124/137 mean
 # the bound fired. Returns the spawn exit status; combined spawn output is in
 # FM_SM_LIVE_OUT and the status in FM_SM_LIVE_RC. When the ledger cannot be
@@ -287,9 +299,28 @@ fm_secondmate_liveness_relaunch() {  # <meta> <id> [timeout-secs]
       window=$(fm_meta_get "$meta" window)
       target=$window
     fi
-    [ -z "$target" ] || fm_backend_kill "$backend" "$target" 2>/dev/null || true
+    if [ -n "$target" ] && ! fm_backend_kill "$backend" "$target" 2>/dev/null; then
+      fm_secondmate_liveness_ledger_add "$id" failed || true
+      FM_SM_LIVE_STATUS=skipped
+      FM_SM_LIVE_REASON="could not prove the old $backend endpoint $target closed; it and its record are left in place, not replaced"
+      FM_SM_LIVE_RC=1
+      return 1
+    fi
   fi
   local rc=0
+  if [ "$FM_SM_LIVE_RESUME" = 1 ]; then
+    local target
+    target=$(fm_backend_target_of_meta "$meta")
+    if fm_backend_source t3code && FM_SM_LIVE_OUT=$(fm_backend_t3code_resume_failed "$target" 2>&1); then
+      fm_secondmate_liveness_ledger_add "$id" relaunched || true
+      return 0
+    else
+      rc=$?
+      FM_SM_LIVE_RC=$rc
+      fm_secondmate_liveness_ledger_add "$id" failed || true
+      return "$rc"
+    fi
+  fi
   if [ -n "$timeout" ]; then
     FM_SM_LIVE_OUT=$(FM_SPAWN_NO_GUARD=1 fm_run_timed "$timeout" "$FM_ROOT/bin/fm-spawn.sh" "$id" --secondmate 2>&1) || rc=$?
   else
