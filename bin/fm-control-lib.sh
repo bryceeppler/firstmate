@@ -363,9 +363,10 @@ fm_control_backend_relaunch_supported() {  # <backend>
 #     passes `--session <session>`, so the recheck starts and reads the session
 #     the RECORD names, through that session's own socket. The answer is about
 #     the task's endpoint and nothing else.
-#   t3code CAN prove it for exit. `missing` means archived or HTTP 404, while
-#     an unreachable server reads `unreadable`; the proof re-reads the thread.
-#     Relaunch still refuses because the thread cannot host a replacement.
+#   t3code has a native absence verdict: `missing` means archived or not found
+#     on the verified server, while an unreachable server reads `unreadable`.
+#     The proof re-reads the thread, but exit and relaunch refuse before it:
+#     V2 has no session stop and a thread cannot host a replacement.
 #   tmux CANNOT. `list-windows -a` describes only the server the CURRENT
 #     process addresses (its TMUX_TMPDIR/socket), and a task's record does not
 #     carry the endpoint's socket identity - so a different but running server

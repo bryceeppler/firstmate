@@ -41,9 +41,8 @@
 #              proof (fm_control_endpoint_absence_verdict) before anything is
 #              claimed about it, because `missing` also covers an endpoint that
 #              is merely unreachable from this seat. Herdr proves absence by
-#              reading the session the record names; T3 Code proves it by
-#              re-reading a thread whose missing result means archived or 404.
-#              proven gone reports `endpoint-gone` rather than
+#              reading the session the record names.
+#              Proven gone reports `endpoint-gone` rather than
 #              `already-stopped`, because the endpoint this verb normally
 #              preserves did not survive; a pane that turns out to be there and
 #              idle is the ordinary `already-stopped`; one whose agent is back
@@ -51,7 +50,7 @@
 #              always REFUSES: a task record carries no socket identity for its
 #              endpoint, so this verb cannot tell a destroyed window from one on
 #              a tmux server it cannot address, and it will not claim a stop it
-#              cannot see. A missing T3 thread reports `endpoint-gone`.
+#              cannot see.
 #              Refused on t3code before anything is sent: T3's `/mcp` tools
 #              have no session stop (bin/fm-control-lib.sh
 #              fm_control_backend_exit_supported); interrupt ends its turn.
