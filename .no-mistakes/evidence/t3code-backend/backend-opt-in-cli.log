@@ -1,0 +1,4 @@
+Unconfigured lab selects: tmux
+Explicit config/backend selects: t3code
+Explicit environment override selects: tmux
+No T3 threads or worker metadata created by selection.

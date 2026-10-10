@@ -1,0 +1,32 @@
+$ git init -q -b main /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KVEXNBM91CPV3NY67H47JQ/.gate-test-tmp/fm-lab-codex-1pe_ihb_
+Exit code: 0
+$ git -C /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KVEXNBM91CPV3NY67H47JQ/.gate-test-tmp/fm-lab-codex-1pe_ihb_ add .codex/config.toml
+Exit code: 0
+$ git -C /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KVEXNBM91CPV3NY67H47JQ/.gate-test-tmp/fm-lab-codex-1pe_ihb_ -c user.name=Gate test -c user.email=gate@example.invalid commit -qm fixture
+Exit code: 0
+$ /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KVEXNBM91CPV3NY67H47JQ/bin/fm-t3code-codex-env.sh check /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KVEXNBM91CPV3NY67H47JQ/.gate-test-tmp/fm-lab-codex-1pe_ihb_
+Exit code: 0
+$ /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KVEXNBM91CPV3NY67H47JQ/bin/fm-t3code-codex-env.sh install /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KVEXNBM91CPV3NY67H47JQ/.gate-test-tmp/fm-lab-codex-1pe_ihb_ FM_TASK_ID=lab-overlay FM_TASK_INBOX=/lab/inbox GOTMPDIR=/lab/tmp
+Exit code: 0
+Emitted Codex configuration: model = "gpt-6.1"
+[features]
+review = true
+
+[shell_environment_policy]
+set = { "FM_TASK_ID" = "lab-overlay", "FM_TASK_INBOX" = "/lab/inbox", "GOTMPDIR" = "/lab/tmp" }
+
+$ git -C /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KVEXNBM91CPV3NY67H47JQ/.gate-test-tmp/fm-lab-codex-1pe_ihb_ add -A
+Exit code: 0
+$ git -C /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KVEXNBM91CPV3NY67H47JQ/.gate-test-tmp/fm-lab-codex-1pe_ihb_ show :.codex/config.toml
+model = "gpt-6.1"
+[features]
+review = true
+Exit code: 0
+Staging retained the original project configuration.
+$ /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KVEXNBM91CPV3NY67H47JQ/bin/fm-t3code-codex-env.sh cleanup /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KVEXNBM91CPV3NY67H47JQ/.gate-test-tmp/fm-lab-codex-1pe_ihb_
+Exit code: 0
+Cleanup restored exact original bytes and removed the overlay journal.
+$ /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KVEXNBM91CPV3NY67H47JQ/bin/fm-t3code-codex-env.sh install /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KVEXNBM91CPV3NY67H47JQ/.gate-test-tmp/fm-lab-codex-1pe_ihb_ FM_TASK_ID=bad-symlink
+error: /home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KVEXNBM91CPV3NY67H47JQ/.gate-test-tmp/fm-lab-codex-1pe_ihb_/.codex/config.toml: refusing a symlink in the tracked Codex environment channel
+Exit code: 1
+A symlinked environment channel was refused without changing its target.

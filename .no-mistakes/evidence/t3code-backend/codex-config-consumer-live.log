@@ -1,0 +1,5 @@
+codex-cli 0.162.1
+initialize: {"userAgent": "fm-gate-config-live/0.162.1 (Ubuntu 26.4.0; x86_64) unknown (fm-gate-config-live; 1)", "codexHome": "/home/bryce/.no-mistakes/worktrees/ca7e3cc870c8/01M4KVEXNBM91CPV3NY67H47JQ/.gate-test-tmp/fm-lab-codex-consumer-b8gywooe/codex-home", "platformFamily": "unix", "platformOs": "linux"}
+config/read: {"model": "gpt-5.6-sol", "shell_environment_policy": {"inherit": null, "ignore_default_excludes": null, "exclude": null, "set": {"FM_TASK_INBOX": "/lab/inbox", "FM_TASK_ID": "live-config-lab"}, "include_only": null, "filters": null, "experimental_use_profile": null}}
+command/exec: {"exitCode": 0, "stdout": "live-config-lab\n/lab/inbox\n", "stderr": ""}
+The actual Codex config loader and command process received the overlay; cleanup restored the original file.
